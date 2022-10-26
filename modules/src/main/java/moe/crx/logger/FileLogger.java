@@ -7,15 +7,21 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
-public final class FileLogger extends Logger {
+public final class FileLogger implements Logger {
 
     private final String tag;
     private final File file = new File("current.log");
+    private int currentIndex = 1;
 
     @Inject
     public FileLogger(@Named("loggerTag") String tag) {
         this.tag = tag;
         file.delete();
+    }
+
+    @Override
+    public void increaseIndex() {
+        currentIndex += 1;
     }
 
     @Override
@@ -27,6 +33,6 @@ public final class FileLogger extends Logger {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        currentIndex += 1;
+        increaseIndex();
     }
 }

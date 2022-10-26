@@ -3,7 +3,7 @@ package moe.crx.logger;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 
-public final class CompositeLogger extends Logger {
+public final class CompositeLogger implements Logger {
 
     private final Logger loggerA;
     private final Logger loggerB;
@@ -16,10 +16,16 @@ public final class CompositeLogger extends Logger {
     }
 
     @Override
+    public void increaseIndex() {
+        loggerA.increaseIndex();
+        loggerB.increaseIndex();
+    }
+
+    @Override
     public void log(String message) {
         loggerA.log(message);
-        loggerB.currentIndex += 1;
+        loggerB.increaseIndex();
         loggerB.log(message);
-        loggerA.currentIndex += 1;
+        loggerA.increaseIndex();
     }
 }
