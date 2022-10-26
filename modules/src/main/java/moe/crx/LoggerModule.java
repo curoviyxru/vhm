@@ -50,9 +50,9 @@ public final class LoggerModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        bind(String.class).annotatedWith(Names.named("tag")).toInstance(tag);
-        bind(Logger.class).annotatedWith(Names.named("console")).to(ConsoleLogger.class);
-        bind(Logger.class).annotatedWith(Names.named("file")).to(FileLogger.class);
+        bind(String.class).annotatedWith(Names.named("loggerTag")).toInstance(tag);
+        bind(Logger.class).annotatedWith(Names.named("compositeLoggerA")).to(ConsoleLogger.class);
+        bind(Logger.class).annotatedWith(Names.named("compositeLoggerB")).to(FileLogger.class);
 
         switch (type) {
             case "file" -> bind(Logger.class).to(FileLogger.class);

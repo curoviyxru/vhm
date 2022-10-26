@@ -9,21 +9,17 @@ public final class CompositeLogger extends Logger {
     private final Logger loggerB;
 
     @Inject
-    public CompositeLogger(@Named("console") Logger loggerA,
-                           @Named("file") Logger loggerB) {
+    public CompositeLogger(@Named("compositeLoggerA") Logger loggerA,
+                           @Named("compositeLoggerB") Logger loggerB) {
         this.loggerA = loggerA;
         this.loggerB = loggerB;
     }
 
     @Override
     public void log(String message) {
-        log(message, currentIndex);
-        currentIndex += 2;
-    }
-
-    @Override
-    public void log(String message, int index) {
-        loggerA.log(message, index);
-        loggerB.log(message, index + 1);
+        loggerA.log(message);
+        loggerB.currentIndex += 1;
+        loggerB.log(message);
+        loggerA.currentIndex += 1;
     }
 }
