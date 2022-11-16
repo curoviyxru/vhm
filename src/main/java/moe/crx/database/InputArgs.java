@@ -1,4 +1,4 @@
-package moe.crx;
+package moe.crx.database;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
