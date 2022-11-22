@@ -6,18 +6,16 @@ import moe.crx.database.HikariConnectable;
 import moe.crx.dto.Receipt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jooq.SQLDialect;
+import org.jooq.impl.DSL;
 
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
+import static moe.crx.jooq.Tables.RECEIPTS;
 
 public final class ReceiptDao extends HikariConnectable implements IDao<Receipt> {
-    private static final String SELECT_SQL = "SELECT * FROM receipts WHERE id = ?";
-    private static final String SELECT_ALL_SQL = "SELECT * FROM receipts";
-    private static final String INSERT_SQL = "INSERT INTO receipts (id, date, organization_id) VALUES (?, ?, ?)";
-    private static final String UPDATE_SQL = "UPDATE receipts SET date = ?, organization_id = ? WHERE id = ?";
-    private static final String DELETE_SQL = "DELETE FROM receipts WHERE id = ?";
 
     @Inject
     public ReceiptDao(@NotNull HikariDataSource dataSource) {
@@ -26,18 +24,10 @@ public final class ReceiptDao extends HikariConnectable implements IDao<Receipt>
 
     @Override
     public @Nullable Receipt read(int id) {
-        try (var connection = getConnection();
-             var statement = connection.prepareStatement(SELECT_SQL)) {
-            statement.setInt(1, id);
-            try (var resultSet = statement.executeQuery()) {
-                if (resultSet.next()) {
-                    return new Receipt(
-                            resultSet.getInt("id"),
-                            resultSet.getDate("date"),
-                            resultSet.getInt("organization_id")
-                    );
-                }
-            }
+        try (var connection = getConnection()) {
+            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
+            return Optional.ofNullable(ctx.selectFrom(RECEIPTS).where(RECEIPTS.ID.eq(id)).fetchOne())
+                    .map(Receipt::new).orElse(null);
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -46,33 +36,22 @@ public final class ReceiptDao extends HikariConnectable implements IDao<Receipt>
 
     @Override
     public @NotNull List<@NotNull Receipt> all() {
-        final var result = new ArrayList<Receipt>();
-        try (var connection = getConnection();
-             var statement = connection.createStatement()) {
-            try (var resultSet = statement.executeQuery(SELECT_ALL_SQL)) {
-                while (resultSet.next()) {
-                    result.add(new Receipt(
-                            resultSet.getInt("id"),
-                            resultSet.getDate("date"),
-                            resultSet.getInt("organization_id")
-                    ));
-                }
-            }
+        try (var connection = getConnection()) {
+            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
+            return ctx.selectFrom(RECEIPTS).fetch().map(Receipt::new);
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return result;
+        return List.of();
     }
 
     @Override
     public boolean create(@NotNull Receipt item) {
-        try (var connection = getConnection();
-             var statement = connection.prepareStatement(INSERT_SQL)) {
-            int i = 1;
-            statement.setInt(i++, item.getId());
-            statement.setDate(i++, item.getDate());
-            statement.setInt(i, item.getOrganizationId());
-            return statement.executeUpdate() != 0;
+        try (var connection = getConnection()) {
+            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
+            return ctx.insertInto(RECEIPTS, RECEIPTS.ID, RECEIPTS.DATE, RECEIPTS.ORGANIZATION_ID)
+                    .values(item.getId(), item.getDate().toLocalDate(), item.getOrganizationId())
+                    .execute() != 0;
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -81,13 +60,13 @@ public final class ReceiptDao extends HikariConnectable implements IDao<Receipt>
 
     @Override
     public boolean update(@NotNull Receipt item) {
-        try (var connection = getConnection();
-             var statement = connection.prepareStatement(UPDATE_SQL)) {
-            int i = 1;
-            statement.setDate(i++, item.getDate());
-            statement.setInt(i++, item.getOrganizationId());
-            statement.setInt(i, item.getId());
-            return statement.executeUpdate() != 0;
+        try (var connection = getConnection()) {
+            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
+            return ctx.update(RECEIPTS)
+                    .set(RECEIPTS.DATE, item.getDate().toLocalDate())
+                    .set(RECEIPTS.ORGANIZATION_ID, item.getOrganizationId())
+                    .where(RECEIPTS.ID.eq(item.getId()))
+                    .execute() != 0;
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -96,10 +75,9 @@ public final class ReceiptDao extends HikariConnectable implements IDao<Receipt>
 
     @Override
     public boolean delete(@NotNull Receipt item) {
-        try (var connection = getConnection();
-             var statement = connection.prepareStatement(DELETE_SQL)) {
-            statement.setInt(1, item.getId());
-            return statement.executeUpdate() != 0;
+        try (var connection = getConnection()) {
+            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
+            return ctx.deleteFrom(RECEIPTS).where(RECEIPTS.ID.eq(item.getId())).execute() != 0;
         } catch (SQLException e) {
             e.printStackTrace();
         }

@@ -8,13 +8,16 @@ import moe.crx.dto.reports.ProductSummary;
 import moe.crx.dto.reports.ProductsReport;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jooq.Condition;
+import org.jooq.SQLDialect;
+import org.jooq.impl.DSL;
 
 import java.sql.Date;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static moe.crx.jooq.Tables.*;
 
 public final class Reporter extends HikariConnectable {
 
@@ -23,172 +26,155 @@ public final class Reporter extends HikariConnectable {
         super(dataSource);
     }
 
-    private static final String GET_TOP_SUPPLIERS_SQL = """
-                    SELECT organizations.inn, organizations.name, organizations.giro FROM organizations
-                    LEFT OUTER JOIN
-                    (SELECT organizations.inn, organizations.name, organizations.giro, SUM(positions.amount) as amount FROM organizations
-                    JOIN receipts ON receipts.organization_id=organizations.inn
-                    JOIN positions ON receipts.id=positions.receipt_id
-                    GROUP BY organizations.inn
-                    ORDER BY SUM(positions.amount) DESC LIMIT 10) filtered ON filtered.inn=organizations.inn
-                    ORDER BY filtered.amount DESC NULLS LAST LIMIT 10""";
-
     public @NotNull List<@NotNull Organization> getTopSuppliers() {
-        final var result = new ArrayList<Organization>();
-        try (var connection = getConnection();
-             var statement = connection.createStatement()) {
-            try (var resultSet = statement.executeQuery(GET_TOP_SUPPLIERS_SQL)) {
-                while (resultSet.next()) {
-                    result.add(new Organization(
-                            resultSet.getInt("inn"),
-                            resultSet.getString("name"),
-                            resultSet.getString("giro")
-                    ));
-                }
-            }
+        try (var connection = getConnection()) {
+            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
+            var filtered =
+                    ctx.select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO, DSL.sum(POSITIONS.AMOUNT).as("amount"))
+                            .from(ORGANIZATIONS)
+                            .join(RECEIPTS).on(RECEIPTS.ORGANIZATION_ID.eq(ORGANIZATIONS.INN))
+                            .join(POSITIONS).on(RECEIPTS.ID.eq(POSITIONS.RECEIPT_ID))
+                            .groupBy(ORGANIZATIONS.INN)
+                            .orderBy(DSL.sum(POSITIONS.AMOUNT).desc())
+                            .limit(10)
+                            .asTable("filtered");
+            return ctx.select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO)
+                    .from(ORGANIZATIONS)
+                    .leftOuterJoin(filtered).on(DSL.field("filtered.inn").eq(ORGANIZATIONS.INN))
+                    .orderBy(DSL.field("filtered.amount").desc().nullsLast())
+                    .limit(10)
+                    .fetch()
+                    .map(record -> new Organization(record.into(ORGANIZATIONS)));
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return result;
+        return List.of();
     }
-
-    private static final String GET_SUPPLIERS_BY_PRODUCT_AND_LIMIT = """
-                    SELECT organizations.inn,organizations.name,organizations.giro from organizations
-                    JOIN receipts ON receipts.organization_id=organizations.inn
-                    JOIN positions ON positions.receipt_id=receipts.id WHERE""";
 
     public @NotNull List<@NotNull Organization> getSuppliersByProductAndLimit(@NotNull Map<@NotNull Product, @NotNull Integer> limits) {
-        final var result = new ArrayList<Organization>();
         if (limits.size() == 0)
-            return result;
-        var builder = new StringBuilder();
-        builder.append(GET_SUPPLIERS_BY_PRODUCT_AND_LIMIT);
-        builder.append(" (product_id = ? AND amount >= ?) OR".repeat(limits.size()));
-        builder.setLength(builder.length() - 3);
-        builder.append(" GROUP BY organizations.inn HAVING COUNT(*) >= ?");
-        try (var connection = getConnection();
-             var statement = connection.prepareStatement(builder.toString())) {
-            int i = 1;
+            return List.of();
+        try (var connection = getConnection()) {
+            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
+            Condition where = DSL.noCondition();
             for (Map.Entry<Product, Integer> entry : limits.entrySet()) {
-                statement.setInt(i++, entry.getKey().getCode());
-                statement.setInt(i++, entry.getValue());
+                where = where.or(POSITIONS.PRODUCT_ID.eq(entry.getKey().getCode()).and(POSITIONS.AMOUNT.ge(entry.getValue())));
             }
-            statement.setInt(i, limits.size());
-            try (var resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    result.add(new Organization(
-                            resultSet.getInt("inn"),
-                            resultSet.getString("name"),
-                            resultSet.getString("giro")
-                    ));
-                }
-            }
+            return ctx.select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO).from(ORGANIZATIONS)
+                    .join(RECEIPTS).on(RECEIPTS.ORGANIZATION_ID.eq(ORGANIZATIONS.INN))
+                    .join(POSITIONS).on(POSITIONS.RECEIPT_ID.eq(RECEIPTS.ID))
+                    .where(where)
+                    .groupBy(ORGANIZATIONS.INN)
+                    .having(DSL.count().ge(limits.size()))
+                    .fetch()
+                    .map(record -> new Organization(record.into(ORGANIZATIONS)));
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return result;
+        return List.of();
     }
-
-    private static final String GET_AVERAGE_PRICE_IN_PERIOD = """
-            SELECT code, name, AVG(price) FROM products
-            JOIN positions ON positions.product_id=products.code
-            JOIN receipts ON positions.receipt_id=receipts.id
-            WHERE date >= ? AND date <= ?
-            GROUP BY code""";
 
     public @NotNull Map<@NotNull Product, @NotNull Double> getAveragePriceInPeriod(@NotNull Date begin, @Nullable Date end) {
         if (end == null)
             end = begin;
-        final var result = new HashMap<Product, Double>();
-        try (var connection = getConnection();
-             var statement = connection.prepareStatement(GET_AVERAGE_PRICE_IN_PERIOD)) {
-            statement.setDate(1, begin);
-            statement.setDate(2, end);
-            try (var resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    result.put(new Product(resultSet.getInt("code"), resultSet.getString("name")), resultSet.getDouble("avg"));
-                }
-            }
+        try (var connection = getConnection()) {
+            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
+            return ctx.select(PRODUCTS.CODE, PRODUCTS.NAME, DSL.avg(POSITIONS.PRICE).as("avg")).from(PRODUCTS)
+                    .join(POSITIONS).on(POSITIONS.PRODUCT_ID.eq(PRODUCTS.CODE))
+                    .join(RECEIPTS).on(POSITIONS.RECEIPT_ID.eq(RECEIPTS.ID))
+                    .where(RECEIPTS.DATE.ge(begin.toLocalDate()).and(RECEIPTS.DATE.le(end.toLocalDate())))
+                    .groupBy(PRODUCTS.CODE)
+                    .fetch()
+                    .collect(Collectors.toMap(record -> new Product(record.into(PRODUCTS)),
+                            record -> record.get("avg", Double.class)));
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return result;
+        return Map.of();
     }
-
-    private static final String GET_SUPPLIED_PRODUCTS_IN_PERIOD = """
-            SELECT organizations.inn, organizations.name, organizations.giro, filtered.code AS product_code, filtered.name AS product_name FROM organizations
-            LEFT OUTER JOIN
-            (SELECT organizations.inn, products.code, products.name FROM organizations
-            JOIN receipts ON receipts.organization_id=organizations.inn
-            JOIN positions ON positions.receipt_id=receipts.id
-            JOIN products ON products.code=positions.product_id
-            WHERE receipts.date >= ? AND receipts.date <= ?) filtered
-            ON filtered.inn=organizations.inn""";
 
     public @NotNull Map<@NotNull Organization, @NotNull List<@NotNull Product>> getSuppliedProductsInPeriod(@NotNull Date begin, @Nullable Date end) {
         if (end == null)
             end = begin;
-        final var result = new HashMap<Organization, List<Product>>();
-        try (var connection = getConnection();
-             var statement = connection.prepareStatement(GET_SUPPLIED_PRODUCTS_IN_PERIOD)) {
-            statement.setDate(1, begin);
-            statement.setDate(2, end);
-            try (var resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    var org = new Organization(resultSet.getInt("inn"), resultSet.getString("name"), resultSet.getString("giro"));
-                    var product = new Product(resultSet.getInt("product_code"), resultSet.getString("product_name"));
-                    var products = result.getOrDefault(org, new ArrayList<>());
-                    if (!resultSet.wasNull())
-                        products.add(product);
-                    result.put(org, products);
-                }
-            }
+        try (var connection = getConnection()) {
+            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
+            var result = new HashMap<Organization, List<Product>>();
+            var filtered =
+                    ctx.select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO,
+                                    PRODUCTS.CODE.as("product_code"), PRODUCTS.NAME.as("product_name"))
+                            .from(ORGANIZATIONS)
+                            .join(RECEIPTS).on(RECEIPTS.ORGANIZATION_ID.eq(ORGANIZATIONS.INN))
+                            .join(POSITIONS).on(POSITIONS.RECEIPT_ID.eq(RECEIPTS.ID))
+                            .join(PRODUCTS).on(PRODUCTS.CODE.eq(POSITIONS.PRODUCT_ID))
+                            .where(RECEIPTS.DATE.ge(begin.toLocalDate()).and(RECEIPTS.DATE.le(end.toLocalDate())))
+                            .asTable("filtered");
+           var select =
+                   ctx.select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO,
+                           DSL.field("filtered.product_code").as("product_code"),
+                           DSL.field("filtered.product_name").as("product_name"))
+                   .from(ORGANIZATIONS)
+                   .leftOuterJoin(filtered).on(DSL.field("filtered.inn").eq(ORGANIZATIONS.INN))
+                   .fetch();
+           for (var record : select) {
+               var org = new Organization(record.into(ORGANIZATIONS));
+               var products = result.getOrDefault(org, new ArrayList<>());
+               if (record.get("product_code") != null && record.get("product_name") != null)
+                   products.add(new Product(record.get("product_code", Integer.class),
+                           record.get("product_name", String.class)));
+               result.put(org, products);
+           }
+           return result;
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return result;
+        return Map.of();
     }
-
-    private static final String GET_PRODUCTS_INFO_IN_PERIOD = """
-            SELECT filtered.code, filtered.name, filtered.price, filtered.amount, temporary_dates.date FROM generate_series(?,?,'1 day'::interval) as temporary_dates
-            LEFT OUTER JOIN (SELECT products.code, products.name, positions.price, positions.amount, receipts.date FROM products
-                        JOIN positions ON positions.product_id=products.code
-                        JOIN receipts ON receipts.id=positions.receipt_id
-                        WHERE date >= ? AND date <= ?
-                        ORDER BY date ASC) filtered on filtered.date = temporary_dates.date
-                        ORDER BY temporary_dates.date ASC""";
 
     public @NotNull ProductsReport getProductsInfoInPeriod(@NotNull Date begin, @Nullable Date end) {
         if (end == null)
             end = begin;
-        final var result = new ProductsReport();
         try (var connection = getConnection()) {
-            try (var statement = connection.prepareStatement(GET_PRODUCTS_INFO_IN_PERIOD)) {
-                statement.setDate(1, begin);
-                statement.setDate(2, end);
-                statement.setDate(3, begin);
-                statement.setDate(4, end);
-                try (var resultSet = statement.executeQuery()) {
-                    while (resultSet.next()) {
-                        var date = resultSet.getDate("date");
-                        var product = new Product(resultSet.getInt("code"), resultSet.getString("name"));
-                        var summary = new ProductSummary(resultSet.getInt("amount"), resultSet.getInt("amount")*resultSet.getInt("price"));
-                        var perDay = result.getPerDay().getOrDefault(date, new HashMap<>());
-                        if (!resultSet.wasNull())
-                            perDay.put(product, summary);
-                        result.getPerDay().put(date, perDay);
-                        if (resultSet.wasNull())
-                            continue;
+            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
+            var result = new ProductsReport();
+            var filtered =
+                    ctx.select(PRODUCTS.CODE, PRODUCTS.NAME, POSITIONS.PRICE, POSITIONS.AMOUNT, RECEIPTS.DATE)
+                            .from(PRODUCTS)
+                            .join(POSITIONS).on(POSITIONS.PRODUCT_ID.eq(PRODUCTS.CODE))
+                            .join(RECEIPTS).on(RECEIPTS.ID.eq(POSITIONS.RECEIPT_ID))
+                            .where(RECEIPTS.DATE.ge(begin.toLocalDate()).and(RECEIPTS.DATE.le(end.toLocalDate())))
+                            .orderBy(RECEIPTS.DATE.asc())
+                            .asTable("filtered");
+            var select =
+                    ctx.select(DSL.field("filtered.code").as("code"),
+                            DSL.field("filtered.name").as("name"),
+                            DSL.field("filtered.price").as("price"),
+                            DSL.field("filtered.amount").as("amount"),
+                            DSL.field("temporary_dates.date").as("date"))
+                            .from(DSL.table("generate_series({0}::date,{1}::date,'1 day'::interval)",
+                                    begin.toLocalDate(), end.toLocalDate()).as("temporary_dates"))
+                            .leftOuterJoin(filtered).on(DSL.field("filtered.date").eq(DSL.field("temporary_dates.date")))
+                            .orderBy(DSL.field("temporary_dates.date").asc()).fetch();
+            for (var record : select) {
+                var date = record.get("date", Date.class);
+                var perDay = result.getPerDay().getOrDefault(date, new HashMap<>());
+                if (record.get("code") != null && record.get("name") != null) {
+                    var product = new Product(record.get("code", Integer.class), record.get("name", String.class));
+                    if (record.get("amount") != null && record.get("price") != null) {
+                        var summary = new ProductSummary(record.get("amount", Integer.class),
+                                record.get("price", Integer.class)*record.get("amount", Integer.class));
+                        perDay.put(product, summary);
                         var inPeriod = result.getInPeriod().getOrDefault(product, new ProductSummary());
                         inPeriod.setAmount(inPeriod.getAmount() + summary.getAmount());
                         inPeriod.setSum(inPeriod.getSum() + summary.getSum());
                         result.getInPeriod().put(product, inPeriod);
                     }
                 }
+                result.getPerDay().put(date, perDay);
             }
+            return result;
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return result;
+        return new ProductsReport();
     }
 }
