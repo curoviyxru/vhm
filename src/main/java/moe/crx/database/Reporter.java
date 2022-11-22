@@ -55,22 +55,25 @@ public final class Reporter extends HikariConnectable {
     private static final String GET_SUPPLIERS_BY_PRODUCT_AND_LIMIT = """
                     SELECT organizations.inn,organizations.name,organizations.giro from organizations
                     JOIN receipts ON receipts.organization_id=organizations.inn
-                    JOIN positions ON positions.receipt_id=receipts.id
-                    WHERE product_id = ? AND amount >= ? INTERSECT\n""";
+                    JOIN positions ON positions.receipt_id=receipts.id WHERE""";
 
     public @NotNull List<@NotNull Organization> getSuppliersByProductAndLimit(@NotNull Map<@NotNull Product, @NotNull Integer> limits) {
         final var result = new ArrayList<Organization>();
         if (limits.size() == 0)
             return result;
-        var request = GET_SUPPLIERS_BY_PRODUCT_AND_LIMIT.repeat(limits.size());
-        request = request.substring(0, request.length() - " INTERSECT ".length());
+        var builder = new StringBuilder();
+        builder.append(GET_SUPPLIERS_BY_PRODUCT_AND_LIMIT);
+        builder.append(" (product_id = ? AND amount >= ?) OR".repeat(limits.size()));
+        builder.setLength(builder.length() - 3);
+        builder.append(" GROUP BY organizations.inn HAVING COUNT(*) >= ?");
         try (var connection = getConnection();
-             var statement = connection.prepareStatement(request)) {
+             var statement = connection.prepareStatement(builder.toString())) {
             int i = 1;
             for (Map.Entry<Product, Integer> entry : limits.entrySet()) {
                 statement.setInt(i++, entry.getKey().getCode());
                 statement.setInt(i++, entry.getValue());
             }
+            statement.setInt(i, limits.size());
             try (var resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
                     result.add(new Organization(
@@ -146,34 +149,53 @@ public final class Reporter extends HikariConnectable {
         return result;
     }
 
+    private static final String PREPARE_TEMPORARY_DATES = """
+            DROP TABLE IF EXISTS temporary_dates;
+            CREATE TEMPORARY TABLE temporary_dates (date date NOT NULL);
+            INSERT INTO temporary_dates select generate_series(?,?,'1 day'::interval);""";
     private static final String GET_PRODUCTS_INFO_IN_PERIOD = """
-            SELECT products.code, products.name, positions.price, positions.amount, receipts.date from products
-            JOIN positions ON positions.product_id=products.code
-            JOIN receipts ON receipts.id=positions.receipt_id
-            WHERE date >= ? AND date <= ?
-            ORDER BY date ASC""";
+            SELECT filtered.code, filtered.name, filtered.price, filtered.amount, temporary_dates.date FROM temporary_dates
+            LEFT OUTER JOIN (SELECT products.code, products.name, positions.price, positions.amount, receipts.date FROM products
+                        JOIN positions ON positions.product_id=products.code
+                        JOIN receipts ON receipts.id=positions.receipt_id
+                        WHERE date >= ? AND date <= ?
+                        ORDER BY date ASC) filtered on filtered.date = temporary_dates.date;""";
+    private static final String DROP_TEMPORARY_DATES = """
+            DROP TABLE IF EXISTS temporary_dates;""";
 
     public @NotNull ProductsReport getProductsInfoInPeriod(@NotNull Date begin, @Nullable Date end) {
         if (end == null)
             end = begin;
         final var result = new ProductsReport();
-        try (var connection = getConnection();
-             var statement = connection.prepareStatement(GET_PRODUCTS_INFO_IN_PERIOD)) {
-            statement.setDate(1, begin);
-            statement.setDate(2, end);
-            try (var resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    var date = resultSet.getDate("date");
-                    var product = new Product(resultSet.getInt("code"), resultSet.getString("name"));
-                    var summary = new ProductSummary(resultSet.getInt("amount"), resultSet.getInt("amount")*resultSet.getInt("price"));
-                    var perDay = result.getPerDay().getOrDefault(date, new HashMap<>());
-                    perDay.put(product, summary);
-                    result.getPerDay().put(date, perDay);
-                    var inPeriod = result.getInPeriod().getOrDefault(product, new ProductSummary());
-                    inPeriod.setAmount(inPeriod.getAmount() + summary.getAmount());
-                    inPeriod.setSum(inPeriod.getSum() + summary.getSum());
-                    result.getInPeriod().put(product, inPeriod);
+        try (var connection = getConnection()) {
+            try (var statement = connection.prepareStatement(PREPARE_TEMPORARY_DATES)) {
+                statement.setDate(1, begin);
+                statement.setDate(2, end);
+                statement.executeUpdate();
+            }
+            try (var statement = connection.prepareStatement(GET_PRODUCTS_INFO_IN_PERIOD)) {
+                statement.setDate(1, begin);
+                statement.setDate(2, end);
+                try (var resultSet = statement.executeQuery()) {
+                    while (resultSet.next()) {
+                        var date = resultSet.getDate("date");
+                        var product = new Product(resultSet.getInt("code"), resultSet.getString("name"));
+                        var summary = new ProductSummary(resultSet.getInt("amount"), resultSet.getInt("amount")*resultSet.getInt("price"));
+                        var perDay = result.getPerDay().getOrDefault(date, new HashMap<>());
+                        if (!resultSet.wasNull())
+                            perDay.put(product, summary);
+                        result.getPerDay().put(date, perDay);
+                        if (resultSet.wasNull())
+                            continue;
+                        var inPeriod = result.getInPeriod().getOrDefault(product, new ProductSummary());
+                        inPeriod.setAmount(inPeriod.getAmount() + summary.getAmount());
+                        inPeriod.setSum(inPeriod.getSum() + summary.getSum());
+                        result.getInPeriod().put(product, inPeriod);
+                    }
                 }
+            }
+            try (var statement = connection.prepareStatement(DROP_TEMPORARY_DATES)) {
+                statement.executeUpdate();
             }
         } catch (SQLException e) {
             e.printStackTrace();
