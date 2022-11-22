@@ -1,6 +1,7 @@
 package moe.crx.database;
 
 import com.google.inject.Inject;
+import com.zaxxer.hikari.HikariDataSource;
 import moe.crx.dto.Organization;
 import moe.crx.dto.Product;
 import moe.crx.dto.reports.ProductSummary;
@@ -8,7 +9,6 @@ import moe.crx.dto.reports.ProductsReport;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.sql.Connection;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -16,13 +16,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class Reporter {
-
-    @NotNull private final Connection connection;
+public final class Reporter extends HikariConnectable {
 
     @Inject
-    public Reporter(@NotNull Connection connection) {
-        this.connection = connection;
+    public Reporter(@NotNull HikariDataSource dataSource) {
+        super(dataSource);
     }
 
     private static final String GET_TOP_SUPPLIERS_SQL = """
@@ -37,7 +35,8 @@ public final class Reporter {
 
     public @NotNull List<@NotNull Organization> getTopSuppliers() {
         final var result = new ArrayList<Organization>();
-        try (var statement = connection.createStatement()) {
+        try (var connection = getConnection();
+             var statement = connection.createStatement()) {
             try (var resultSet = statement.executeQuery(GET_TOP_SUPPLIERS_SQL)) {
                 while (resultSet.next()) {
                     result.add(new Organization(
@@ -65,7 +64,8 @@ public final class Reporter {
             return result;
         var request = GET_SUPPLIERS_BY_PRODUCT_AND_LIMIT.repeat(limits.size());
         request = request.substring(0, request.length() - " INTERSECT ".length());
-        try (var statement = connection.prepareStatement(request)) {
+        try (var connection = getConnection();
+             var statement = connection.prepareStatement(request)) {
             int i = 1;
             for (Map.Entry<Product, Integer> entry : limits.entrySet()) {
                 statement.setInt(i++, entry.getKey().getCode());
@@ -97,7 +97,8 @@ public final class Reporter {
         if (end == null)
             end = begin;
         final var result = new HashMap<Product, Double>();
-        try (var statement = connection.prepareStatement(GET_AVERAGE_PRICE_IN_PERIOD)) {
+        try (var connection = getConnection();
+             var statement = connection.prepareStatement(GET_AVERAGE_PRICE_IN_PERIOD)) {
             statement.setDate(1, begin);
             statement.setDate(2, end);
             try (var resultSet = statement.executeQuery()) {
@@ -125,7 +126,8 @@ public final class Reporter {
         if (end == null)
             end = begin;
         final var result = new HashMap<Organization, List<Product>>();
-        try (var statement = connection.prepareStatement(GET_SUPPLIED_PRODUCTS_IN_PERIOD)) {
+        try (var connection = getConnection();
+             var statement = connection.prepareStatement(GET_SUPPLIED_PRODUCTS_IN_PERIOD)) {
             statement.setDate(1, begin);
             statement.setDate(2, end);
             try (var resultSet = statement.executeQuery()) {
@@ -155,7 +157,8 @@ public final class Reporter {
         if (end == null)
             end = begin;
         final var result = new ProductsReport();
-        try (var statement = connection.prepareStatement(GET_PRODUCTS_INFO_IN_PERIOD)) {
+        try (var connection = getConnection();
+             var statement = connection.prepareStatement(GET_PRODUCTS_INFO_IN_PERIOD)) {
             statement.setDate(1, begin);
             statement.setDate(2, end);
             try (var resultSet = statement.executeQuery()) {
