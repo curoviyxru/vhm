@@ -8,6 +8,7 @@ import moe.crx.factories.LibraryFactory;
 import moe.crx.models.Book;
 import moe.crx.models.BookAuthor;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -33,6 +34,7 @@ public abstract class AbstractLibraryTest {
      * Библиотека бросает исключение при создании, если ее вместимость меньше чем количество книг, возвращаемое фабрикой.
      */
     @Test
+    @DisplayName("Библиотека бросает исключение при создании, если ее вместимость меньше чем количество книг, возвращаемое фабрикой.")
     public void testCapacityExceptionWhenConstructing() {
         assertThrows(InsufficientCapacityException.class, () -> libraryFactory.library(1));
         assertThrows(InsufficientCapacityException.class, () -> libraryFactory.library(10));
@@ -43,6 +45,7 @@ public abstract class AbstractLibraryTest {
      * При создании библиотеки все книги расставлены по ячейкам в порядке как они возвращаются фабрикой книг. Остальные ячейки пусты.
      */
     @Test
+    @DisplayName("При создании библиотеки все книги расставлены по ячейкам в порядке как они возвращаются фабрикой книг. Остальные ячейки пусты.")
     public void testCellsOrdering() {
         final Book[] books = booksFactory.books().toArray(new Book[0]);
         final Library library = libraryFactory.library(books.length + CAPACITY_GAP);
@@ -60,6 +63,7 @@ public abstract class AbstractLibraryTest {
      * При взятии книги информация о ней и ячейке выводится.
      */
     @Test
+    @DisplayName("При взятии книги информация о ней и ячейке выводится.")
     public void testPrintingWhenGetting() {
         final Library library = libraryFactory.library(booksFactory.books().size());
         final PrintStream stdOut = System.out;
@@ -85,6 +89,7 @@ public abstract class AbstractLibraryTest {
      * При попытке взять книгу из пустой ячейки библиотека бросает исключение.
      */
     @Test
+    @DisplayName("При попытке взять книгу из пустой ячейки библиотека бросает исключение.")
     public void testEmptyCellExceptionWhenGetting() {
         final Library library = libraryFactory.library(booksFactory.books().size() + CAPACITY_GAP);
 
@@ -103,6 +108,7 @@ public abstract class AbstractLibraryTest {
      * При взятии книги возвращается именно та книга, что была в этой ячейке.
      */
     @Test
+    @DisplayName("При взятии книги возвращается именно та книга, что была в этой ячейке.")
     public void testBooksGetting() {
         final Book[] books = booksFactory.books().toArray(new Book[0]);
         final Library library = libraryFactory.library(books.length);
@@ -116,6 +122,7 @@ public abstract class AbstractLibraryTest {
      * При добавлении книги она размещается в первой свободной ячейке.
      */
     @Test
+    @DisplayName("При добавлении книги она размещается в первой свободной ячейке.")
     public void testBookAdding() {
         final Book[] books = booksFactory.books().toArray(new Book[0]);
         final Library library = libraryFactory.library(books.length + CAPACITY_GAP);
@@ -134,6 +141,7 @@ public abstract class AbstractLibraryTest {
      * Если при добавлении книги свободных ячеек нет, библиотека бросает исключение.
      */
     @Test
+    @DisplayName("Если при добавлении книги свободных ячеек нет, библиотека бросает исключение.")
     public void testCapacityExceptionWhenAdding() {
         final Book testBook = new Book("Test Book", new BookAuthor("Test Author"));
         assertThrows(InsufficientCapacityException.class, () -> libraryFactory.library(booksFactory.books().size()).add(testBook));
@@ -143,6 +151,7 @@ public abstract class AbstractLibraryTest {
      * Вызов метода “напечатать в консоль содержимое” выводит информацию о содержимом ячеек библиотеки.
      */
     @Test
+    @DisplayName("Вызов метода “напечатать в консоль содержимое” выводит информацию о содержимом ячеек библиотеки.")
     public void testPrintingContents() {
         final Library library = libraryFactory.library(booksFactory.books().size() + CAPACITY_GAP);
         final PrintStream stdOut = System.out;

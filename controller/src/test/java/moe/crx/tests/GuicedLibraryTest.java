@@ -10,7 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.util.Objects;
 
-public final class GuiceLibraryTest extends AbstractLibraryTest {
+public final class GuicedLibraryTest extends AbstractLibraryTest {
 
     @BeforeEach
     @Override
