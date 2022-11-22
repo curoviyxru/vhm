@@ -149,33 +149,25 @@ public final class Reporter extends HikariConnectable {
         return result;
     }
 
-    private static final String PREPARE_TEMPORARY_DATES = """
-            DROP TABLE IF EXISTS temporary_dates;
-            CREATE TEMPORARY TABLE temporary_dates (date date NOT NULL);
-            INSERT INTO temporary_dates select generate_series(?,?,'1 day'::interval);""";
     private static final String GET_PRODUCTS_INFO_IN_PERIOD = """
-            SELECT filtered.code, filtered.name, filtered.price, filtered.amount, temporary_dates.date FROM temporary_dates
+            SELECT filtered.code, filtered.name, filtered.price, filtered.amount, temporary_dates.date FROM generate_series(?,?,'1 day'::interval) as temporary_dates
             LEFT OUTER JOIN (SELECT products.code, products.name, positions.price, positions.amount, receipts.date FROM products
                         JOIN positions ON positions.product_id=products.code
                         JOIN receipts ON receipts.id=positions.receipt_id
                         WHERE date >= ? AND date <= ?
-                        ORDER BY date ASC) filtered on filtered.date = temporary_dates.date;""";
-    private static final String DROP_TEMPORARY_DATES = """
-            DROP TABLE IF EXISTS temporary_dates;""";
+                        ORDER BY date ASC) filtered on filtered.date = temporary_dates.date
+                        ORDER BY temporary_dates.date ASC""";
 
     public @NotNull ProductsReport getProductsInfoInPeriod(@NotNull Date begin, @Nullable Date end) {
         if (end == null)
             end = begin;
         final var result = new ProductsReport();
         try (var connection = getConnection()) {
-            try (var statement = connection.prepareStatement(PREPARE_TEMPORARY_DATES)) {
-                statement.setDate(1, begin);
-                statement.setDate(2, end);
-                statement.executeUpdate();
-            }
             try (var statement = connection.prepareStatement(GET_PRODUCTS_INFO_IN_PERIOD)) {
                 statement.setDate(1, begin);
                 statement.setDate(2, end);
+                statement.setDate(3, begin);
+                statement.setDate(4, end);
                 try (var resultSet = statement.executeQuery()) {
                     while (resultSet.next()) {
                         var date = resultSet.getDate("date");
@@ -193,9 +185,6 @@ public final class Reporter extends HikariConnectable {
                         result.getInPeriod().put(product, inPeriod);
                     }
                 }
-            }
-            try (var statement = connection.prepareStatement(DROP_TEMPORARY_DATES)) {
-                statement.executeUpdate();
             }
         } catch (SQLException e) {
             e.printStackTrace();
