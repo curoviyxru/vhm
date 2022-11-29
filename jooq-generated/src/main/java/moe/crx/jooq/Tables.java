@@ -5,9 +5,7 @@ package moe.crx.jooq;
 
 
 import moe.crx.jooq.tables.Organizations;
-import moe.crx.jooq.tables.Positions;
 import moe.crx.jooq.tables.Products;
-import moe.crx.jooq.tables.Receipts;
 
 
 /**
@@ -22,17 +20,7 @@ public class Tables {
     public static final Organizations ORGANIZATIONS = Organizations.ORGANIZATIONS;
 
     /**
-     * The table <code>public.positions</code>.
-     */
-    public static final Positions POSITIONS = Positions.POSITIONS;
-
-    /**
      * The table <code>public.products</code>.
      */
     public static final Products PRODUCTS = Products.PRODUCTS;
-
-    /**
-     * The table <code>public.receipts</code>.
-     */
-    public static final Receipts RECEIPTS = Receipts.RECEIPTS;
 }

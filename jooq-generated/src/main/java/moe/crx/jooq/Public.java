@@ -8,9 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import moe.crx.jooq.tables.Organizations;
-import moe.crx.jooq.tables.Positions;
 import moe.crx.jooq.tables.Products;
-import moe.crx.jooq.tables.Receipts;
 
 import org.jooq.Catalog;
 import org.jooq.Table;
@@ -36,19 +34,9 @@ public class Public extends SchemaImpl {
     public final Organizations ORGANIZATIONS = Organizations.ORGANIZATIONS;
 
     /**
-     * The table <code>public.positions</code>.
-     */
-    public final Positions POSITIONS = Positions.POSITIONS;
-
-    /**
      * The table <code>public.products</code>.
      */
     public final Products PRODUCTS = Products.PRODUCTS;
-
-    /**
-     * The table <code>public.receipts</code>.
-     */
-    public final Receipts RECEIPTS = Receipts.RECEIPTS;
 
     /**
      * No further instances allowed
@@ -67,9 +55,7 @@ public class Public extends SchemaImpl {
     public final List<Table<?>> getTables() {
         return Arrays.asList(
             Organizations.ORGANIZATIONS,
-            Positions.POSITIONS,
-            Products.PRODUCTS,
-            Receipts.RECEIPTS
+            Products.PRODUCTS
         );
     }
 }

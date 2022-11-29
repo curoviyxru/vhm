@@ -5,15 +5,10 @@ package moe.crx.jooq;
 
 
 import moe.crx.jooq.tables.Organizations;
-import moe.crx.jooq.tables.Positions;
 import moe.crx.jooq.tables.Products;
-import moe.crx.jooq.tables.Receipts;
 import moe.crx.jooq.tables.records.OrganizationsRecord;
-import moe.crx.jooq.tables.records.PositionsRecord;
 import moe.crx.jooq.tables.records.ProductsRecord;
-import moe.crx.jooq.tables.records.ReceiptsRecord;
 
-import org.jooq.ForeignKey;
 import org.jooq.TableField;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
@@ -31,16 +26,7 @@ public class Keys {
     // UNIQUE and PRIMARY KEY definitions
     // -------------------------------------------------------------------------
 
-    public static final UniqueKey<OrganizationsRecord> ORGANIZATIONS_PK = Internal.createUniqueKey(Organizations.ORGANIZATIONS, DSL.name("organizations_pk"), new TableField[] { Organizations.ORGANIZATIONS.INN }, true);
-    public static final UniqueKey<PositionsRecord> POSITIONS_ID = Internal.createUniqueKey(Positions.POSITIONS, DSL.name("positions_id"), new TableField[] { Positions.POSITIONS.ID }, true);
-    public static final UniqueKey<ProductsRecord> PRODUCTS_PK = Internal.createUniqueKey(Products.PRODUCTS, DSL.name("products_pk"), new TableField[] { Products.PRODUCTS.CODE }, true);
-    public static final UniqueKey<ReceiptsRecord> RECEIPTS_PK = Internal.createUniqueKey(Receipts.RECEIPTS, DSL.name("receipts_pk"), new TableField[] { Receipts.RECEIPTS.ID }, true);
-
-    // -------------------------------------------------------------------------
-    // FOREIGN KEY definitions
-    // -------------------------------------------------------------------------
-
-    public static final ForeignKey<PositionsRecord, ProductsRecord> POSITIONS__PRODUCT_ID = Internal.createForeignKey(Positions.POSITIONS, DSL.name("product_id"), new TableField[] { Positions.POSITIONS.PRODUCT_ID }, Keys.PRODUCTS_PK, new TableField[] { Products.PRODUCTS.CODE }, true);
-    public static final ForeignKey<PositionsRecord, ReceiptsRecord> POSITIONS__RECEIPT_ID = Internal.createForeignKey(Positions.POSITIONS, DSL.name("receipt_id"), new TableField[] { Positions.POSITIONS.RECEIPT_ID }, Keys.RECEIPTS_PK, new TableField[] { Receipts.RECEIPTS.ID }, true);
-    public static final ForeignKey<ReceiptsRecord, OrganizationsRecord> RECEIPTS__ORGANIZATION_ID = Internal.createForeignKey(Receipts.RECEIPTS, DSL.name("organization_id"), new TableField[] { Receipts.RECEIPTS.ORGANIZATION_ID }, Keys.ORGANIZATIONS_PK, new TableField[] { Organizations.ORGANIZATIONS.INN }, true);
+    public static final UniqueKey<OrganizationsRecord> ORGANIZATIONS_NAME_KEY = Internal.createUniqueKey(Organizations.ORGANIZATIONS, DSL.name("organizations_name_key"), new TableField[] { Organizations.ORGANIZATIONS.NAME }, true);
+    public static final UniqueKey<OrganizationsRecord> ORGANIZATIONS_PK = Internal.createUniqueKey(Organizations.ORGANIZATIONS, DSL.name("organizations_pk"), new TableField[] { Organizations.ORGANIZATIONS.ID }, true);
+    public static final UniqueKey<ProductsRecord> PRODUCTS_PK = Internal.createUniqueKey(Products.PRODUCTS, DSL.name("products_pk"), new TableField[] { Products.PRODUCTS.ID }, true);
 }

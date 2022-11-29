@@ -4,6 +4,8 @@
 package moe.crx.jooq.tables;
 
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Function;
 
 import moe.crx.jooq.Keys;
@@ -12,11 +14,12 @@ import moe.crx.jooq.tables.records.OrganizationsRecord;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Function3;
+import org.jooq.Function2;
+import org.jooq.Identity;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Records;
-import org.jooq.Row3;
+import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.SelectField;
 import org.jooq.Table;
@@ -50,19 +53,14 @@ public class Organizations extends TableImpl<OrganizationsRecord> {
     }
 
     /**
-     * The column <code>public.organizations.inn</code>.
+     * The column <code>public.organizations.id</code>.
      */
-    public final TableField<OrganizationsRecord, Integer> INN = createField(DSL.name("inn"), SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<OrganizationsRecord, Integer> ID = createField(DSL.name("id"), SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>public.organizations.name</code>.
      */
     public final TableField<OrganizationsRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR.nullable(false), this, "");
-
-    /**
-     * The column <code>public.organizations.giro</code>.
-     */
-    public final TableField<OrganizationsRecord, String> GIRO = createField(DSL.name("giro"), SQLDataType.VARCHAR.nullable(false), this, "");
 
     private Organizations(Name alias, Table<OrganizationsRecord> aliased) {
         this(alias, aliased, null);
@@ -103,8 +101,18 @@ public class Organizations extends TableImpl<OrganizationsRecord> {
     }
 
     @Override
+    public Identity<OrganizationsRecord, Integer> getIdentity() {
+        return (Identity<OrganizationsRecord, Integer>) super.getIdentity();
+    }
+
+    @Override
     public UniqueKey<OrganizationsRecord> getPrimaryKey() {
         return Keys.ORGANIZATIONS_PK;
+    }
+
+    @Override
+    public List<UniqueKey<OrganizationsRecord>> getUniqueKeys() {
+        return Arrays.asList(Keys.ORGANIZATIONS_NAME_KEY);
     }
 
     @Override
@@ -147,18 +155,18 @@ public class Organizations extends TableImpl<OrganizationsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row3 type methods
+    // Row2 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row3<Integer, String, String> fieldsRow() {
-        return (Row3) super.fieldsRow();
+    public Row2<Integer, String> fieldsRow() {
+        return (Row2) super.fieldsRow();
     }
 
     /**
      * Convenience mapping calling {@link SelectField#convertFrom(Function)}.
      */
-    public <U> SelectField<U> mapping(Function3<? super Integer, ? super String, ? super String, ? extends U> from) {
+    public <U> SelectField<U> mapping(Function2<? super Integer, ? super String, ? extends U> from) {
         return convertFrom(Records.mapping(from));
     }
 
@@ -166,7 +174,7 @@ public class Organizations extends TableImpl<OrganizationsRecord> {
      * Convenience mapping calling {@link SelectField#convertFrom(Class,
      * Function)}.
      */
-    public <U> SelectField<U> mapping(Class<U> toType, Function3<? super Integer, ? super String, ? super String, ? extends U> from) {
+    public <U> SelectField<U> mapping(Class<U> toType, Function2<? super Integer, ? super String, ? extends U> from) {
         return convertFrom(toType, Records.mapping(from));
     }
 }

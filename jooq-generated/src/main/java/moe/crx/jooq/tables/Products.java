@@ -12,11 +12,12 @@ import moe.crx.jooq.tables.records.ProductsRecord;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
-import org.jooq.Function2;
+import org.jooq.Function4;
+import org.jooq.Identity;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Records;
-import org.jooq.Row2;
+import org.jooq.Row4;
 import org.jooq.Schema;
 import org.jooq.SelectField;
 import org.jooq.Table;
@@ -50,14 +51,24 @@ public class Products extends TableImpl<ProductsRecord> {
     }
 
     /**
-     * The column <code>public.products.code</code>.
+     * The column <code>public.products.id</code>.
      */
-    public final TableField<ProductsRecord, Integer> CODE = createField(DSL.name("code"), SQLDataType.INTEGER.nullable(false), this, "");
+    public final TableField<ProductsRecord, Integer> ID = createField(DSL.name("id"), SQLDataType.INTEGER.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>public.products.name</code>.
      */
     public final TableField<ProductsRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR.nullable(false), this, "");
+
+    /**
+     * The column <code>public.products.org_id</code>.
+     */
+    public final TableField<ProductsRecord, Integer> ORG_ID = createField(DSL.name("org_id"), SQLDataType.INTEGER.nullable(false), this, "");
+
+    /**
+     * The column <code>public.products.amount</code>.
+     */
+    public final TableField<ProductsRecord, Integer> AMOUNT = createField(DSL.name("amount"), SQLDataType.INTEGER.nullable(false), this, "");
 
     private Products(Name alias, Table<ProductsRecord> aliased) {
         this(alias, aliased, null);
@@ -95,6 +106,11 @@ public class Products extends TableImpl<ProductsRecord> {
     @Override
     public Schema getSchema() {
         return aliased() ? null : Public.PUBLIC;
+    }
+
+    @Override
+    public Identity<ProductsRecord, Integer> getIdentity() {
+        return (Identity<ProductsRecord, Integer>) super.getIdentity();
     }
 
     @Override
@@ -142,18 +158,18 @@ public class Products extends TableImpl<ProductsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row2 type methods
+    // Row4 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row2<Integer, String> fieldsRow() {
-        return (Row2) super.fieldsRow();
+    public Row4<Integer, String, Integer, Integer> fieldsRow() {
+        return (Row4) super.fieldsRow();
     }
 
     /**
      * Convenience mapping calling {@link SelectField#convertFrom(Function)}.
      */
-    public <U> SelectField<U> mapping(Function2<? super Integer, ? super String, ? extends U> from) {
+    public <U> SelectField<U> mapping(Function4<? super Integer, ? super String, ? super Integer, ? super Integer, ? extends U> from) {
         return convertFrom(Records.mapping(from));
     }
 
@@ -161,7 +177,7 @@ public class Products extends TableImpl<ProductsRecord> {
      * Convenience mapping calling {@link SelectField#convertFrom(Class,
      * Function)}.
      */
-    public <U> SelectField<U> mapping(Class<U> toType, Function2<? super Integer, ? super String, ? extends U> from) {
+    public <U> SelectField<U> mapping(Class<U> toType, Function4<? super Integer, ? super String, ? super Integer, ? super Integer, ? extends U> from) {
         return convertFrom(toType, Records.mapping(from));
     }
 }

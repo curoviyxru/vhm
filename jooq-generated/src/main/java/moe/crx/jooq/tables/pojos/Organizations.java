@@ -15,31 +15,27 @@ public class Organizations implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private final Integer inn;
+    private final Integer id;
     private final String name;
-    private final String giro;
 
     public Organizations(Organizations value) {
-        this.inn = value.inn;
+        this.id = value.id;
         this.name = value.name;
-        this.giro = value.giro;
     }
 
     public Organizations(
-        Integer inn,
-        String name,
-        String giro
+        Integer id,
+        String name
     ) {
-        this.inn = inn;
+        this.id = id;
         this.name = name;
-        this.giro = giro;
     }
 
     /**
-     * Getter for <code>public.organizations.inn</code>.
+     * Getter for <code>public.organizations.id</code>.
      */
-    public Integer getInn() {
-        return this.inn;
+    public Integer getId() {
+        return this.id;
     }
 
     /**
@@ -47,13 +43,6 @@ public class Organizations implements Serializable {
      */
     public String getName() {
         return this.name;
-    }
-
-    /**
-     * Getter for <code>public.organizations.giro</code>.
-     */
-    public String getGiro() {
-        return this.giro;
     }
 
     @Override
@@ -65,23 +54,17 @@ public class Organizations implements Serializable {
         if (getClass() != obj.getClass())
             return false;
         final Organizations other = (Organizations) obj;
-        if (this.inn == null) {
-            if (other.inn != null)
+        if (this.id == null) {
+            if (other.id != null)
                 return false;
         }
-        else if (!this.inn.equals(other.inn))
+        else if (!this.id.equals(other.id))
             return false;
         if (this.name == null) {
             if (other.name != null)
                 return false;
         }
         else if (!this.name.equals(other.name))
-            return false;
-        if (this.giro == null) {
-            if (other.giro != null)
-                return false;
-        }
-        else if (!this.giro.equals(other.giro))
             return false;
         return true;
     }
@@ -90,9 +73,8 @@ public class Organizations implements Serializable {
     public int hashCode() {
         final int prime = 31;
         int result = 1;
-        result = prime * result + ((this.inn == null) ? 0 : this.inn.hashCode());
+        result = prime * result + ((this.id == null) ? 0 : this.id.hashCode());
         result = prime * result + ((this.name == null) ? 0 : this.name.hashCode());
-        result = prime * result + ((this.giro == null) ? 0 : this.giro.hashCode());
         return result;
     }
 
@@ -100,9 +82,8 @@ public class Organizations implements Serializable {
     public String toString() {
         StringBuilder sb = new StringBuilder("Organizations (");
 
-        sb.append(inn);
+        sb.append(id);
         sb.append(", ").append(name);
-        sb.append(", ").append(giro);
 
         sb.append(")");
         return sb.toString();
