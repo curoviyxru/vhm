@@ -27,8 +27,7 @@ public abstract class AbstractDao<Type extends UpdatableRecord<?>> extends Hikar
     public @Nullable Type read(int id) {
         try (var connection = getConnection()) {
             return DSL.using(connection, SQLDialect.POSTGRES)
-                    .selectFrom(table).where(keyField.eq(id)).fetchOptional()
-                    .map(r -> r.into(table)).orElse(null);
+                    .fetchOne(table, keyField.eq(id));
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -38,7 +37,7 @@ public abstract class AbstractDao<Type extends UpdatableRecord<?>> extends Hikar
     public @NotNull List<@NotNull Type> all() {
         try (var connection = getConnection()) {
             return DSL.using(connection, SQLDialect.POSTGRES)
-                    .selectFrom(table).fetch().map(r -> r.into(table));
+                    .fetch(table);
         } catch (SQLException e) {
             e.printStackTrace();
         }
