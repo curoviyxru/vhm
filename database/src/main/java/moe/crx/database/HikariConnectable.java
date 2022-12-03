@@ -16,6 +16,8 @@ public abstract class HikariConnectable {
     }
 
     @NotNull protected Connection getConnection() throws SQLException {
+        //:( В обертывании SQLException не вижу большого смысла, т.к. close() все равно throws SQLException,
+        //из-за чего в любом случае приходится добавлять catch clause. (может быть я недодумался, как и его опустить?)
         return dataSource.getConnection();
     }
 }
