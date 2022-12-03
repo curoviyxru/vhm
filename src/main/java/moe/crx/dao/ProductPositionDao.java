@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 
 import static moe.crx.jooq.Tables.POSITIONS;
 
-public final class ProductPositionDao extends AbstractDao<PositionsRecord> {
+public final class ProductPositionDao extends AbstractDao<PositionsRecord, Integer> {
 
     @Inject
     public ProductPositionDao(@NotNull HikariDataSource dataSource) {

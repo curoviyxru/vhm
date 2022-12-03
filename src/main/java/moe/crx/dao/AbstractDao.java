@@ -9,16 +9,16 @@ import org.jooq.*;
 
 import java.util.List;
 
-public abstract class AbstractDao<Type extends UpdatableRecord<?>> extends HikariConnectable {
+public abstract class AbstractDao<Type extends UpdatableRecord<?>, KeyType> extends HikariConnectable {
 
     private final Table<Type> table;
-    private final TableField<Type, Integer> keyField;
+    private final TableField<Type, KeyType> keyField;
     private final boolean isKeySerial;
     private final TableField<Type, ?>[] exclusiveFields;
 
     @Inject public AbstractDao(@NotNull HikariDataSource dataSource,
                                @NotNull Table<Type> table,
-                               @NotNull TableField<Type, Integer> keyField,
+                               @NotNull TableField<Type, KeyType> keyField,
                                boolean isKeySerial,
                                @NotNull TableField<Type, ?> ... exclusiveFields) {
         super(dataSource);
@@ -28,7 +28,7 @@ public abstract class AbstractDao<Type extends UpdatableRecord<?>> extends Hikar
         this.exclusiveFields = exclusiveFields;
     }
 
-    public @Nullable Type read(int id) {
+    public @Nullable Type read(KeyType id) {
         try (var c = getConnection()) {
             return c.context().fetchOne(table, keyField.eq(id));
         }

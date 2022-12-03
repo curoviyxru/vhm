@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 
 import static moe.crx.jooq.Tables.RECEIPTS;
 
-public final class ReceiptDao extends AbstractDao<ReceiptsRecord> {
+public final class ReceiptDao extends AbstractDao<ReceiptsRecord, Integer> {
 
     @Inject
     public ReceiptDao(@NotNull HikariDataSource dataSource) {
