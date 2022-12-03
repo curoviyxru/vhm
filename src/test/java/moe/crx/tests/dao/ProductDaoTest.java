@@ -34,7 +34,9 @@ public final class ProductDaoTest extends GuicedTest {
                 new ProductsRecord(3, "Ximi Reimu 11T"),
                 new ProductsRecord(4, "Gnusmas Space C22")
         );
-        assertEquals(entries, dao.all());
+        var actual = dao.all();
+
+        assertTrue(actual.size() == entries.size() && actual.containsAll(entries));
     }
 
     @Test

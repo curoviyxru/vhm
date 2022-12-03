@@ -11,13 +11,14 @@ import java.text.ParseException;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public final class ReporterTest extends GuicedTest {
 
     @Test
     void getTopSuppliers() {
         var reporter = injector.getInstance(Reporter.class);
-        var suppliers = Arrays.asList(
+        var entries = Arrays.asList(
                 new OrganizationsRecord(222222, "DNC Store", "908416510931"),
                 new OrganizationsRecord(333333, "reShop Store", "234790619471"),
                 new OrganizationsRecord(444444, "Online-exchange Store", "129360150954"),
@@ -30,7 +31,9 @@ public final class ReporterTest extends GuicedTest {
                 new OrganizationsRecord(888888, "Noname Store", "14151356316")
         );
 
-        assertEquals(suppliers, reporter.getTopSuppliers());
+        var actual = reporter.getTopSuppliers();
+
+        assertTrue(actual.size() == entries.size() && actual.containsAll(entries));
     }
 
     @Test
@@ -107,6 +110,13 @@ public final class ReporterTest extends GuicedTest {
         supplied.put(new OrganizationsRecord(1000000, "GeeksStore", "2353153141"), new ArrayList<>());
         supplied.put(new OrganizationsRecord(222222, "DNC Store", "908416510931"), new ArrayList<>());
 
-        assertEquals(supplied, reporter.getSuppliedProductsInPeriod(begin, end));
+        var suppliedReverse = new HashMap<>(supplied);
+        suppliedReverse.put(new OrganizationsRecord(111111, "N.Video Store", "614615097140"), Arrays.asList(
+                new ProductsRecord(2, "ePhone 14 Super Puper")
+                , new ProductsRecord(4, "Gnusmas Space C22")));
+
+        var actual = reporter.getSuppliedProductsInPeriod(begin, end);
+
+        assertTrue(actual.equals(supplied) || actual.equals(suppliedReverse));
     }
 }

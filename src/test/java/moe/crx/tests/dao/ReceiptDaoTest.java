@@ -43,7 +43,9 @@ public final class ReceiptDaoTest extends GuicedTest {
                 new ReceiptsRecord(1, getDate("2022-01-05"), 444444),
                 new ReceiptsRecord(4, getDate("2022-01-03"), 111111)
         );
-        assertEquals(entries, dao.all());
+        var actual = dao.all();
+
+        assertTrue(actual.size() == entries.size() && actual.containsAll(entries));
     }
 
     @Test

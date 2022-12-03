@@ -48,7 +48,9 @@ public final class OrganizationDaoTest extends GuicedTest {
                 new OrganizationsRecord(1000000, "GeeksStore", "2353153141"),
                 new OrganizationsRecord(1111111, "SmartBuy Store", "123146514151")
         );
-        assertEquals(entries, dao.all());
+        var actual = dao.all();
+
+        assertTrue(actual.size() == entries.size() && actual.containsAll(entries));
     }
 
     @Test

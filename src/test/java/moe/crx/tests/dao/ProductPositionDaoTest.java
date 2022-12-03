@@ -46,7 +46,9 @@ public final class ProductPositionDaoTest extends GuicedTest {
                 new PositionsRecord(5, 2, 2, 59999.99, 1000),
                 new PositionsRecord(4, 5, 3, 21999.0, 200)
         );
-        assertEquals(entries, dao.all());
+        var actual = dao.all();
+
+        assertTrue(actual.size() == entries.size() && actual.containsAll(entries));
     }
 
     @Test
