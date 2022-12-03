@@ -3,7 +3,7 @@ package moe.crx;
 import com.google.inject.Guice;
 import moe.crx.database.DatabaseModule;
 import moe.crx.database.Reporter;
-import moe.crx.dto.Product;
+import moe.crx.jooq.tables.records.ProductsRecord;
 import org.flywaydb.core.Flyway;
 import org.jetbrains.annotations.NotNull;
 
@@ -28,22 +28,22 @@ public final class Starter {
         System.out.println();
 
         System.out.println("Suppliers by product and it's limits:");
-        var limits = new HashMap<Product, Integer>();
-        limits.put(new Product(1, null), 200);
-        limits.put(new Product(4, null), 300);
+        var limits = new HashMap<ProductsRecord, Integer>();
+        limits.put(new ProductsRecord(1, null), 200);
+        limits.put(new ProductsRecord(4, null), 300);
         reporter.getSuppliersByProductAndLimit(limits).forEach(o -> System.out.printf("%d/%s/%s%n",
                 o.getInn(), o.getName(), o.getGiro()));
 
         System.out.println();
 
         var formatter = new SimpleDateFormat("yyyy-MM-dd", Locale.ENGLISH);
-        var begin = new Date(formatter.parse("2022-01-01").getTime());
-        var end = new Date(formatter.parse("2022-01-05").getTime());
+        var begin = new Date(formatter.parse("2022-01-01").getTime()).toLocalDate();
+        var end = new Date(formatter.parse("2022-01-05").getTime()).toLocalDate();
 
         System.out.println("Products info in period:");
         var info = reporter.getProductsInfoInPeriod(begin, end);
         info.getPerDay().forEach((d, m) -> {
-            System.out.printf("%s:%n", formatter.format(d));
+            System.out.printf("%s:%n", d.toString());
             m.forEach((e, s) -> System.out.printf("%s: %d items, %.2f sum%n",
                     e.getName(), s.getAmount(), s.getSum()));
             System.out.println();

@@ -1,7 +1,7 @@
 package moe.crx.tests.dao;
 
 import moe.crx.dao.ProductDao;
-import moe.crx.dto.Product;
+import moe.crx.jooq.tables.records.ProductsRecord;
 import moe.crx.tests.GuicedTest;
 import org.junit.jupiter.api.Test;
 
@@ -15,12 +15,12 @@ public final class ProductDaoTest extends GuicedTest {
     void read() {
         var dao = injector.getInstance(ProductDao.class);
         var entries = Arrays.asList(
-                new Product(1, "Kokia 10.9 6G"),
-                new Product(2, "ePhone 14 Super Puper"),
-                new Product(3, "Ximi Reimu 11T"),
-                new Product(4, "Gnusmas Space C22")
+                new ProductsRecord(1, "Kokia 10.9 6G"),
+                new ProductsRecord(2, "ePhone 14 Super Puper"),
+                new ProductsRecord(3, "Ximi Reimu 11T"),
+                new ProductsRecord(4, "Gnusmas Space C22")
         );
-        for (Product product : entries) {
+        for (ProductsRecord product : entries) {
             assertEquals(dao.read(product.getCode()), product);
         }
     }
@@ -29,10 +29,10 @@ public final class ProductDaoTest extends GuicedTest {
     void all() {
         var dao = injector.getInstance(ProductDao.class);
         var entries = Arrays.asList(
-                new Product(1, "Kokia 10.9 6G"),
-                new Product(2, "ePhone 14 Super Puper"),
-                new Product(3, "Ximi Reimu 11T"),
-                new Product(4, "Gnusmas Space C22")
+                new ProductsRecord(1, "Kokia 10.9 6G"),
+                new ProductsRecord(2, "ePhone 14 Super Puper"),
+                new ProductsRecord(3, "Ximi Reimu 11T"),
+                new ProductsRecord(4, "Gnusmas Space C22")
         );
         assertEquals(entries, dao.all());
     }
@@ -40,7 +40,7 @@ public final class ProductDaoTest extends GuicedTest {
     @Test
     void create() {
         var dao = injector.getInstance(ProductDao.class);
-        var product = new Product(random.nextInt(), "Test Product");
+        var product = new ProductsRecord(random.nextInt(), "Test Product");
         assertTrue(dao.create(product));
         assertEquals(product, dao.read(product.getCode()));
         assertTrue(dao.delete(product));
@@ -49,10 +49,10 @@ public final class ProductDaoTest extends GuicedTest {
     @Test
     void update() {
         var dao = injector.getInstance(ProductDao.class);
-        var product = new Product(random.nextInt(), "Test Product");
+        var product = new ProductsRecord(random.nextInt(), "Test Product");
         assertTrue(dao.create(product));
         assertEquals(product, dao.read(product.getCode()));
-        product = new Product(product.getCode(), "Test Product 2");
+        product = new ProductsRecord(product.getCode(), "Test Product 2");
         assertTrue(dao.update(product));
         assertEquals(product, dao.read(product.getCode()));
         assertTrue(dao.delete(product));
@@ -61,7 +61,7 @@ public final class ProductDaoTest extends GuicedTest {
     @Test
     void delete() {
         var dao = injector.getInstance(ProductDao.class);
-        var product = new Product(random.nextInt(), "Test Product");
+        var product = new ProductsRecord(random.nextInt(), "Test Product");
         assertTrue(dao.create(product));
         assertEquals(product, dao.read(product.getCode()));
         assertTrue(dao.delete(product));
