@@ -2,7 +2,7 @@ package moe.crx;
 
 import com.google.inject.Guice;
 import moe.crx.database.DatabaseModule;
-import moe.crx.database.Reporter;
+import moe.crx.reports.Reporter;
 import moe.crx.jooq.tables.records.ProductsRecord;
 import org.flywaydb.core.Flyway;
 import org.jetbrains.annotations.NotNull;

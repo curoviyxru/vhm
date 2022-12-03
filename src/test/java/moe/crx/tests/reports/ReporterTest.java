@@ -1,10 +1,11 @@
-package moe.crx.tests;
+package moe.crx.tests.reports;
 
-import moe.crx.database.Reporter;
+import moe.crx.reports.Reporter;
 import moe.crx.jooq.tables.records.OrganizationsRecord;
 import moe.crx.jooq.tables.records.ProductsRecord;
 import moe.crx.reports.ProductSummary;
 import moe.crx.reports.ProductsReport;
+import moe.crx.tests.GuiceTest;
 import org.junit.jupiter.api.Test;
 
 import java.text.ParseException;
@@ -13,11 +14,14 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public final class ReporterTest extends GuicedTest {
+public final class ReporterTest extends GuiceTest<Reporter> {
+
+    public ReporterTest() {
+        super(Reporter.class);
+    }
 
     @Test
     void getTopSuppliers() {
-        var reporter = injector.getInstance(Reporter.class);
         var entries = Arrays.asList(
                 new OrganizationsRecord(222222, "DNC Store", "908416510931"),
                 new OrganizationsRecord(333333, "reShop Store", "234790619471"),
@@ -31,14 +35,13 @@ public final class ReporterTest extends GuicedTest {
                 new OrganizationsRecord(888888, "Noname Store", "14151356316")
         );
 
-        var actual = reporter.getTopSuppliers();
+        var actual = instance.getTopSuppliers();
 
         assertTrue(actual.size() == entries.size() && actual.containsAll(entries));
     }
 
     @Test
     void getSuppliersByProductAndLimit() {
-        var reporter = injector.getInstance(Reporter.class);
         var suppliers =
                 List.of(new OrganizationsRecord(333333, "reShop Store", "234790619471"));
 
@@ -46,12 +49,11 @@ public final class ReporterTest extends GuicedTest {
         limits.put(new ProductsRecord(1, null), 200);
         limits.put(new ProductsRecord(4, null), 300);
 
-        assertEquals(suppliers, reporter.getSuppliersByProductAndLimit(limits));
+        assertEquals(suppliers, instance.getSuppliersByProductAndLimit(limits));
     }
 
     @Test
     void getProductsInfoInPeriod() throws ParseException {
-        var reporter = injector.getInstance(Reporter.class);
         var begin = getDate("2022-01-01");
         var end = getDate("2022-01-05");
 
@@ -71,12 +73,11 @@ public final class ReporterTest extends GuicedTest {
         info.getInPeriod().put(new ProductsRecord(3, "Ximi Reimu 11T"), new ProductSummary(1000, 19999990));
         info.getInPeriod().put(new ProductsRecord(4, "Gnusmas Space C22"), new ProductSummary(250, 16925000));
 
-        assertEquals(info, reporter.getProductsInfoInPeriod(begin, end));
+        assertEquals(info, instance.getProductsInfoInPeriod(begin, end));
     }
 
     @Test
     void getAveragePriceInPeriod() throws ParseException {
-        var reporter = injector.getInstance(Reporter.class);
         var begin = getDate("2022-01-01");
         var end = getDate("2022-01-05");
 
@@ -85,12 +86,11 @@ public final class ReporterTest extends GuicedTest {
         average.put(new ProductsRecord(3, "Ximi Reimu 11T"), 19999.99d);
         average.put(new ProductsRecord(4, "Gnusmas Space C22"), 67700.00d);
 
-        assertEquals(average, reporter.getAveragePriceInPeriod(begin, end));
+        assertEquals(average, instance.getAveragePriceInPeriod(begin, end));
     }
 
     @Test
     void getSuppliedProductsInPeriod() throws ParseException {
-        var reporter = injector.getInstance(Reporter.class);
         var begin = getDate("2022-01-01");
         var end = getDate("2022-01-05");
 
@@ -115,7 +115,7 @@ public final class ReporterTest extends GuicedTest {
                 new ProductsRecord(2, "ePhone 14 Super Puper")
                 , new ProductsRecord(4, "Gnusmas Space C22")));
 
-        var actual = reporter.getSuppliedProductsInPeriod(begin, end);
+        var actual = instance.getSuppliedProductsInPeriod(begin, end);
 
         assertTrue(actual.equals(supplied) || actual.equals(suppliedReverse));
     }

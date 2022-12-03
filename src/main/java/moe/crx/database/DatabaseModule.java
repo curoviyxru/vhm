@@ -7,6 +7,7 @@ import moe.crx.dao.OrganizationDao;
 import moe.crx.dao.ProductDao;
 import moe.crx.dao.ProductPositionDao;
 import moe.crx.dao.ReceiptDao;
+import moe.crx.reports.Reporter;
 import org.flywaydb.core.Flyway;
 import org.jetbrains.annotations.NotNull;
 

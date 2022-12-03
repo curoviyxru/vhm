@@ -1,7 +1,8 @@
-package moe.crx.database;
+package moe.crx.reports;
 
 import com.google.inject.Inject;
 import com.zaxxer.hikari.HikariDataSource;
+import moe.crx.database.HikariConnectable;
 import moe.crx.jooq.tables.records.OrganizationsRecord;
 import moe.crx.jooq.tables.records.ProductsRecord;
 import moe.crx.reports.ProductSummary;
