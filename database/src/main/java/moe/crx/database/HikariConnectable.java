@@ -4,7 +4,6 @@ import com.google.inject.Inject;
 import com.zaxxer.hikari.HikariDataSource;
 import org.jetbrains.annotations.NotNull;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 
 public abstract class HikariConnectable {
@@ -15,9 +14,11 @@ public abstract class HikariConnectable {
         this.dataSource = dataSource;
     }
 
-    @NotNull protected Connection getConnection() throws SQLException {
-        //:( В обертывании SQLException не вижу большого смысла, т.к. close() все равно throws SQLException,
-        //из-за чего в любом случае приходится добавлять catch clause. (может быть я недодумался, как и его опустить?)
-        return dataSource.getConnection();
+    @NotNull protected WrappedConnection getConnection() {
+        try {
+            return new WrappedConnection(dataSource.getConnection());
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -7,10 +7,10 @@ import org.jetbrains.annotations.NotNull;
 
 import static moe.crx.jooq.Tables.ORGANIZATIONS;
 
-public final class OrganizationDao extends AbstractDao<OrganizationsRecord> {
+public final class OrganizationDao extends AbstractDao<OrganizationsRecord, Integer> {
 
     @Inject
     public OrganizationDao(@NotNull HikariDataSource dataSource) {
-        super(dataSource, ORGANIZATIONS, ORGANIZATIONS.ID, ORGANIZATIONS.NAME);
+        super(dataSource, ORGANIZATIONS, ORGANIZATIONS.ID, true, ORGANIZATIONS.NAME);
     }
 }
