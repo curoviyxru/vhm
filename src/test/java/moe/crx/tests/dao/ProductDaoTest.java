@@ -43,7 +43,7 @@ public final class ProductDaoTest extends GuicedTest {
     void create() {
         var dao = injector.getInstance(ProductDao.class);
         var product = new ProductsRecord(random.nextInt(), "Test Product");
-        assertTrue(dao.create(product));
+        assertNotNull(dao.create(product));
         assertEquals(product, dao.read(product.getCode()));
         assertTrue(dao.delete(product));
     }
@@ -52,7 +52,7 @@ public final class ProductDaoTest extends GuicedTest {
     void update() {
         var dao = injector.getInstance(ProductDao.class);
         var product = new ProductsRecord(random.nextInt(), "Test Product");
-        assertTrue(dao.create(product));
+        assertNotNull(dao.create(product));
         assertEquals(product, dao.read(product.getCode()));
         product = new ProductsRecord(product.getCode(), "Test Product 2");
         assertTrue(dao.update(product));
@@ -64,7 +64,7 @@ public final class ProductDaoTest extends GuicedTest {
     void delete() {
         var dao = injector.getInstance(ProductDao.class);
         var product = new ProductsRecord(random.nextInt(), "Test Product");
-        assertTrue(dao.create(product));
+        assertNotNull(dao.create(product));
         assertEquals(product, dao.read(product.getCode()));
         assertTrue(dao.delete(product));
         assertNull(dao.read(product.getCode()));

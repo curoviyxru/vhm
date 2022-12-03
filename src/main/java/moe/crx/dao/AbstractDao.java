@@ -6,71 +6,64 @@ import moe.crx.database.HikariConnectable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jooq.*;
-import org.jooq.impl.DSL;
 
-import java.sql.SQLException;
 import java.util.List;
 
 public abstract class AbstractDao<Type extends UpdatableRecord<?>> extends HikariConnectable {
 
     private final Table<Type> table;
     private final TableField<Type, Integer> keyField;
+    private final boolean isKeySerial;
+    private final TableField<Type, ?>[] exclusiveFields;
 
     @Inject public AbstractDao(@NotNull HikariDataSource dataSource,
                                @NotNull Table<Type> table,
-                               @NotNull TableField<Type, Integer> keyField) {
+                               @NotNull TableField<Type, Integer> keyField,
+                               boolean isKeySerial,
+                               @NotNull TableField<Type, ?> ... exclusiveFields) {
         super(dataSource);
         this.table = table;
         this.keyField = keyField;
+        this.isKeySerial = isKeySerial;
+        this.exclusiveFields = exclusiveFields;
     }
 
     public @Nullable Type read(int id) {
-        try (var connection = getConnection()) {
-            return DSL.using(connection, SQLDialect.POSTGRES)
-                    .fetchOne(table, keyField.eq(id));
-        } catch (SQLException e) {
-            e.printStackTrace();
+        try (var c = getConnection()) {
+            return c.context().fetchOne(table, keyField.eq(id));
         }
-        return null;
     }
 
     public @NotNull List<@NotNull Type> all() {
-        try (var connection = getConnection()) {
-            return DSL.using(connection, SQLDialect.POSTGRES)
-                    .fetch(table);
-        } catch (SQLException e) {
-            e.printStackTrace();
+        try (var c = getConnection()) {
+            return c.context().fetch(table);
         }
-        return List.of();
     }
 
-    public boolean create(@NotNull Type item) {
-        try (var connection = getConnection()) {
-            return DSL.using(connection, SQLDialect.POSTGRES)
-                    .executeInsert(item) != 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
+    public @Nullable Type create(@NotNull Type item) {
+        try (var c = getConnection()) {
+            if (isKeySerial)
+                item.reset(keyField);
+            return c.context()
+                    .insertInto(table)
+                    .set(item)
+                    .onConflict(exclusiveFields)
+                    .doUpdate()
+                    .set(item)
+                    .returning()
+                    .fetchOne();
         }
-        return false;
     }
 
     public boolean update(@NotNull Type item) {
-        try (var connection = getConnection()) {
-            return DSL.using(connection, SQLDialect.POSTGRES)
-                    .executeUpdate(item) != 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
+        try (var c = getConnection()) {
+            return c.context().executeUpdate(item) != 0;
         }
-        return false;
     }
 
     public boolean delete(@NotNull Type item) {
-        try (var connection = getConnection()) {
-            return DSL.using(connection, SQLDialect.POSTGRES)
-                    .executeDelete(item) != 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
+        try (var c = getConnection()) {
+            return c.context().executeDelete(item) != 0;
         }
-        return false;
     }
 }

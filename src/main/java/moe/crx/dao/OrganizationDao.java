@@ -11,6 +11,6 @@ public final class OrganizationDao extends AbstractDao<OrganizationsRecord> {
 
     @Inject
     public OrganizationDao(@NotNull HikariDataSource dataSource) {
-        super(dataSource, ORGANIZATIONS, ORGANIZATIONS.INN);
+        super(dataSource, ORGANIZATIONS, ORGANIZATIONS.INN, false);
     }
 }

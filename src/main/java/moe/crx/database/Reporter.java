@@ -14,7 +14,6 @@ import org.jooq.impl.DSL;
 
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collector;
@@ -35,40 +34,38 @@ public final class Reporter extends HikariConnectable {
     private static final Field<BigDecimal> SUM_AMOUNT = DSL.sum(POSITIONS.AMOUNT).as("amount");
 
     public @NotNull List<@NotNull OrganizationsRecord> getTopSuppliers() {
-        try (var connection = getConnection()) {
-            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
-            var filtered =
-                    ctx.select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO, SUM_AMOUNT)
-                            .from(ORGANIZATIONS)
-                            .join(RECEIPTS).on(RECEIPTS.ORGANIZATION_ID.eq(ORGANIZATIONS.INN))
-                            .join(POSITIONS).on(RECEIPTS.ID.eq(POSITIONS.RECEIPT_ID))
-                            .groupBy(ORGANIZATIONS.INN)
-                            .orderBy(DSL.sum(POSITIONS.AMOUNT).desc())
-                            .limit(10)
-                            .asTable(FILTERED);
-            return ctx.select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO)
+        try (var c = getConnection()) {
+            var filtered = c.context()
+                    .select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO, SUM_AMOUNT)
+                    .from(ORGANIZATIONS)
+                    .join(RECEIPTS).on(RECEIPTS.ORGANIZATION_ID.eq(ORGANIZATIONS.INN))
+                    .join(POSITIONS).on(RECEIPTS.ID.eq(POSITIONS.RECEIPT_ID))
+                    .groupBy(ORGANIZATIONS.INN)
+                    .orderBy(DSL.sum(POSITIONS.AMOUNT).desc())
+                    .limit(10)
+                    .asTable(FILTERED);
+            return c.context()
+                    .select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO)
                     .from(ORGANIZATIONS)
                     .leftOuterJoin(filtered).on(FILTERED_INN.eq(ORGANIZATIONS.INN))
                     .orderBy(FILTERED_AMOUNT.desc().nullsLast())
                     .limit(10)
                     .fetch()
                     .map(record -> record.into(ORGANIZATIONS));
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
-        return List.of();
     }
 
     public @NotNull List<@NotNull OrganizationsRecord> getSuppliersByProductAndLimit(@NotNull Map<@NotNull ProductsRecord, @NotNull Integer> limits) {
         if (limits.size() == 0)
             return List.of();
-        try (var connection = getConnection()) {
-            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
+
+        try (var c = getConnection()) {
             Condition where = DSL.noCondition();
             for (Map.Entry<ProductsRecord, Integer> entry : limits.entrySet()) {
                 where = where.or(POSITIONS.PRODUCT_ID.eq(entry.getKey().getCode()).and(POSITIONS.AMOUNT.ge(entry.getValue())));
             }
-            return ctx.select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO).from(ORGANIZATIONS)
+            return c.context()
+                    .select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO).from(ORGANIZATIONS)
                     .join(RECEIPTS).on(RECEIPTS.ORGANIZATION_ID.eq(ORGANIZATIONS.INN))
                     .join(POSITIONS).on(POSITIONS.RECEIPT_ID.eq(RECEIPTS.ID))
                     .where(where)
@@ -76,10 +73,7 @@ public final class Reporter extends HikariConnectable {
                     .having(DSL.count().ge(limits.size()))
                     .fetch()
                     .map(record -> record.into(ORGANIZATIONS));
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
-        return List.of();
     }
 
     private static final Field<BigDecimal> AVERAGE_PRICE = DSL.avg(POSITIONS.PRICE).as("avg");
@@ -87,9 +81,10 @@ public final class Reporter extends HikariConnectable {
     public @NotNull Map<@NotNull ProductsRecord, @NotNull Double> getAveragePriceInPeriod(@NotNull LocalDate begin, @Nullable LocalDate end) {
         if (end == null)
             end = begin;
-        try (var connection = getConnection()) {
-            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
-            return ctx.select(PRODUCTS.CODE, PRODUCTS.NAME, AVERAGE_PRICE).from(PRODUCTS)
+
+        try (var c = getConnection()) {
+            return c.context()
+                    .select(PRODUCTS.CODE, PRODUCTS.NAME, AVERAGE_PRICE).from(PRODUCTS)
                     .join(POSITIONS).on(POSITIONS.PRODUCT_ID.eq(PRODUCTS.CODE))
                     .join(RECEIPTS).on(POSITIONS.RECEIPT_ID.eq(RECEIPTS.ID))
                     .where(RECEIPTS.DATE.ge(begin).and(RECEIPTS.DATE.le(end)))
@@ -97,10 +92,7 @@ public final class Reporter extends HikariConnectable {
                     .fetch()
                     .collect(Collectors.toMap(record -> record.into(PRODUCTS),
                             record -> record.get(AVERAGE_PRICE).doubleValue()));
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
-        return Map.of();
     }
 
     private static final Field<Integer> FILTERED_PRODUCT_CODE = PRODUCTS.CODE.as("filtered_product_code");
@@ -109,20 +101,20 @@ public final class Reporter extends HikariConnectable {
     public @NotNull Map<@NotNull OrganizationsRecord, @NotNull List<@NotNull ProductsRecord>> getSuppliedProductsInPeriod(@NotNull LocalDate begin, @Nullable LocalDate end) {
         if (end == null)
             end = begin;
-        try (var connection = getConnection()) {
-            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
-            var filtered =
-                    ctx.select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO,
-                                    FILTERED_PRODUCT_CODE, FILTERED_PRODUCT_NAME)
-                            .from(ORGANIZATIONS)
-                            .join(RECEIPTS).on(RECEIPTS.ORGANIZATION_ID.eq(ORGANIZATIONS.INN))
-                            .join(POSITIONS).on(POSITIONS.RECEIPT_ID.eq(RECEIPTS.ID))
-                            .join(PRODUCTS).on(PRODUCTS.CODE.eq(POSITIONS.PRODUCT_ID))
-                            .where(RECEIPTS.DATE.ge(begin).and(RECEIPTS.DATE.le(end)))
-                            .asTable(FILTERED);
-           var select =
-                   ctx.select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO,
-                                   filtered.field(FILTERED_PRODUCT_CODE), filtered.field(FILTERED_PRODUCT_NAME))
+
+        try (var c = getConnection()) {
+            var filtered = c.context()
+                    .select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO,
+                            FILTERED_PRODUCT_CODE, FILTERED_PRODUCT_NAME)
+                    .from(ORGANIZATIONS)
+                    .join(RECEIPTS).on(RECEIPTS.ORGANIZATION_ID.eq(ORGANIZATIONS.INN))
+                    .join(POSITIONS).on(POSITIONS.RECEIPT_ID.eq(RECEIPTS.ID))
+                    .join(PRODUCTS).on(PRODUCTS.CODE.eq(POSITIONS.PRODUCT_ID))
+                    .where(RECEIPTS.DATE.ge(begin).and(RECEIPTS.DATE.le(end)))
+                    .asTable(FILTERED);
+           var select = c.context()
+                   .select(ORGANIZATIONS.INN, ORGANIZATIONS.NAME, ORGANIZATIONS.GIRO,
+                           filtered.field(FILTERED_PRODUCT_CODE), filtered.field(FILTERED_PRODUCT_NAME))
                    .from(ORGANIZATIONS)
                    .leftOuterJoin(filtered).on(FILTERED_INN.eq(ORGANIZATIONS.INN))
                    .fetch();
@@ -131,10 +123,7 @@ public final class Reporter extends HikariConnectable {
                            Collectors.filtering(e -> e.get(FILTERED_PRODUCT_CODE) != null && e.get(FILTERED_PRODUCT_NAME) != null,
                                    Collectors.mapping(e -> new ProductsRecord(e.get(FILTERED_PRODUCT_CODE), e.get(FILTERED_PRODUCT_NAME)),
                                            Collectors.toList()))));
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
-        return Map.of();
     }
 
     private final static Table<Record> TEMPORARY_DATES = DSL.table("temporary_dates");
@@ -144,27 +133,27 @@ public final class Reporter extends HikariConnectable {
     public @NotNull ProductsReport getProductsInfoInPeriod(@NotNull LocalDate begin, @Nullable LocalDate end) {
         if (end == null)
             end = begin;
-        try (var connection = getConnection()) {
-            var ctx = DSL.using(connection, SQLDialect.POSTGRES);
-            var filtered =
-                    ctx.select(PRODUCTS.CODE, PRODUCTS.NAME, POSITIONS.PRICE, POSITIONS.AMOUNT, RECEIPTS.DATE)
-                            .from(PRODUCTS)
-                            .join(POSITIONS).on(POSITIONS.PRODUCT_ID.eq(PRODUCTS.CODE))
-                            .join(RECEIPTS).on(RECEIPTS.ID.eq(POSITIONS.RECEIPT_ID))
-                            .where(RECEIPTS.DATE.ge(begin).and(RECEIPTS.DATE.le(end)))
-                            .orderBy(RECEIPTS.DATE.asc())
-                            .asTable(FILTERED);
-            var tempDates = DSL.table(GENERATE_TEMPORARY_DATES_SQL,
-                    begin, end).as(TEMPORARY_DATES.getName(), TEMPORARY_DATES_FIELD.getName());
-            var select =
-                    ctx.select(filtered.field(PRODUCTS.CODE),
-                                    filtered.field(PRODUCTS.NAME),
-                                    filtered.field(POSITIONS.PRICE),
-                                    filtered.field(POSITIONS.AMOUNT),
-                                    TEMPORARY_DATES_FIELD)
-                            .from(tempDates)
-                            .leftOuterJoin(filtered).on(TEMPORARY_DATES_FIELD.eq(filtered.field(RECEIPTS.DATE)))
-                            .orderBy(TEMPORARY_DATES_FIELD.asc()).fetch();
+
+        try (var c = getConnection()) {
+            var filtered = c.context()
+                    .select(PRODUCTS.CODE, PRODUCTS.NAME, POSITIONS.PRICE, POSITIONS.AMOUNT, RECEIPTS.DATE)
+                    .from(PRODUCTS)
+                    .join(POSITIONS).on(POSITIONS.PRODUCT_ID.eq(PRODUCTS.CODE))
+                    .join(RECEIPTS).on(RECEIPTS.ID.eq(POSITIONS.RECEIPT_ID))
+                    .where(RECEIPTS.DATE.ge(begin).and(RECEIPTS.DATE.le(end)))
+                    .orderBy(RECEIPTS.DATE.asc())
+                    .asTable(FILTERED);
+            var tempDates = DSL.table(GENERATE_TEMPORARY_DATES_SQL, begin, end)
+                    .as(TEMPORARY_DATES.getName(), TEMPORARY_DATES_FIELD.getName());
+            var select = c.context()
+                    .select(filtered.field(PRODUCTS.CODE),
+                            filtered.field(PRODUCTS.NAME),
+                            filtered.field(POSITIONS.PRICE),
+                            filtered.field(POSITIONS.AMOUNT),
+                            TEMPORARY_DATES_FIELD)
+                    .from(tempDates)
+                    .leftOuterJoin(filtered).on(TEMPORARY_DATES_FIELD.eq(filtered.field(RECEIPTS.DATE)))
+                    .orderBy(TEMPORARY_DATES_FIELD.asc()).fetch();
             var perDay = select.collect(
                     Collectors.groupingBy(e -> e.get(TEMPORARY_DATES_FIELD, Date.class).toLocalDate(),
                     Collectors.filtering(e -> e.get(PRODUCTS.CODE) != null && e.get(PRODUCTS.NAME) != null
@@ -178,9 +167,6 @@ public final class Reporter extends HikariConnectable {
                                     Collectors.mapping(e -> new ProductSummary(e.into(POSITIONS)),
                                             Collector.of(ProductSummary::new, ProductSummary::add, ProductSummary::new)))));
             return new ProductsReport(perDay, inPeriod);
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
-        return new ProductsReport();
     }
 }

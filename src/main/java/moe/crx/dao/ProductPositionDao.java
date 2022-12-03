@@ -11,6 +11,6 @@ public final class ProductPositionDao extends AbstractDao<PositionsRecord> {
 
     @Inject
     public ProductPositionDao(@NotNull HikariDataSource dataSource) {
-        super(dataSource, POSITIONS, POSITIONS.ID);
+        super(dataSource, POSITIONS, POSITIONS.ID, false);
     }
 }

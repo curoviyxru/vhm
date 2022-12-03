@@ -57,7 +57,7 @@ public final class OrganizationDaoTest extends GuicedTest {
     void create() {
         var dao = injector.getInstance(OrganizationDao.class);
         var org = new OrganizationsRecord(random.nextInt(), "UnitTest Store", String.valueOf(random.nextLong()));
-        assertTrue(dao.create(org));
+        assertNotNull(dao.create(org));
         assertEquals(org, dao.read(org.getInn()));
         assertTrue(dao.delete(org));
     }
@@ -66,7 +66,7 @@ public final class OrganizationDaoTest extends GuicedTest {
     void update() {
         var dao = injector.getInstance(OrganizationDao.class);
         var org = new OrganizationsRecord(random.nextInt(), "UnitTest Store", String.valueOf(random.nextLong()));
-        assertTrue(dao.create(org));
+        assertNotNull(dao.create(org));
         assertEquals(org, dao.read(org.getInn()));
         org = new OrganizationsRecord(org.getInn(), "UnitTest Store 2", String.valueOf(random.nextLong()));
         assertTrue(dao.update(org));
@@ -78,7 +78,7 @@ public final class OrganizationDaoTest extends GuicedTest {
     void delete() {
         var dao = injector.getInstance(OrganizationDao.class);
         var org = new OrganizationsRecord(random.nextInt(), "UnitTest Store", String.valueOf(random.nextLong()));
-        assertTrue(dao.create(org));
+        assertNotNull(dao.create(org));
         assertEquals(org, dao.read(org.getInn()));
         assertTrue(dao.delete(org));
         assertNull(dao.read(org.getInn()));

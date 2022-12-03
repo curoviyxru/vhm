@@ -11,6 +11,6 @@ public final class ReceiptDao extends AbstractDao<ReceiptsRecord> {
 
     @Inject
     public ReceiptDao(@NotNull HikariDataSource dataSource) {
-        super(dataSource, RECEIPTS, RECEIPTS.ID);
+        super(dataSource, RECEIPTS, RECEIPTS.ID, false);
     }
 }

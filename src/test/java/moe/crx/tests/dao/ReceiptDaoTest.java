@@ -52,7 +52,7 @@ public final class ReceiptDaoTest extends GuicedTest {
     void create() throws ParseException {
         var dao = injector.getInstance(ReceiptDao.class);
         var receipt = new ReceiptsRecord(random.nextInt(), getDate("2022-01-09"), 111111);
-        assertTrue(dao.create(receipt));
+        assertNotNull(dao.create(receipt));
         assertEquals(receipt, dao.read(receipt.getId()));
         assertTrue(dao.delete(receipt));
     }
@@ -61,7 +61,7 @@ public final class ReceiptDaoTest extends GuicedTest {
     void update() throws ParseException {
         var dao = injector.getInstance(ReceiptDao.class);
         var receipt = new ReceiptsRecord(random.nextInt(), getDate("2022-01-09"), 111111);
-        assertTrue(dao.create(receipt));
+        assertNotNull(dao.create(receipt));
         assertEquals(receipt, dao.read(receipt.getId()));
         receipt = new ReceiptsRecord(receipt.getId(), getDate("2022-02-09"), 222222);
         assertTrue(dao.update(receipt));
@@ -73,7 +73,7 @@ public final class ReceiptDaoTest extends GuicedTest {
     void delete() throws ParseException {
         var dao = injector.getInstance(ReceiptDao.class);
         var receipt = new ReceiptsRecord(random.nextInt(), getDate("2022-01-09"), 111111);
-        assertTrue(dao.create(receipt));
+        assertNotNull(dao.create(receipt));
         assertEquals(receipt, dao.read(receipt.getId()));
         assertTrue(dao.delete(receipt));
         assertNull(dao.read(receipt.getId()));
