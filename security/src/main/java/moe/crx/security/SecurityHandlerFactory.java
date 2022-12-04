@@ -6,10 +6,7 @@ import org.eclipse.jetty.security.LoginService;
 import org.eclipse.jetty.security.authentication.BasicAuthenticator;
 import org.eclipse.jetty.util.security.Constraint;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public final class SecurityHandlerFactory {
     private static final String ROLE_MANAGER = "manager";
@@ -22,9 +19,9 @@ public final class SecurityHandlerFactory {
 
         final List<ConstraintMapping> constraintMappings = new ArrayList<>();
         constraintMappings.addAll(constraintFullMapping(buildConstraint(ROLE_MANAGER),
-                Collections.singletonList("/products/add")));
+                Arrays.asList("/products/add", "/products/delete")));
         constraintMappings.addAll(constraintGetMapping(buildConstraint(ROLE_GUEST, ROLE_MANAGER),
-                Collections.singletonList("/products/list")));
+                Arrays.asList("/products", "/products/list", "/products/{name}/list")));
 
         security.setConstraintMappings(constraintMappings);
         security.setAuthenticator(new BasicAuthenticator());

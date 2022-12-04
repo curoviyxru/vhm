@@ -9,19 +9,24 @@ import org.jooq.*;
 
 import java.util.List;
 
-public abstract class AbstractDao<Type extends UpdatableRecord<?>, KeyType> extends HikariConnectable {
+public abstract class AbstractDao<Type, RecordType extends UpdatableRecord<?>, KeyType> extends HikariConnectable {
 
-    private final Table<Type> table;
-    private final TableField<Type, KeyType> keyField;
+    private final Table<RecordType> table;
+    private final TableField<RecordType, KeyType> keyField;
     private final boolean isKeySerial;
-    private final TableField<Type, ?>[] exclusiveFields;
+    private final TableField<RecordType, ?>[] exclusiveFields;
+    private final Class<Type> clazz;
 
-    @Inject public AbstractDao(@NotNull HikariDataSource dataSource,
-                               @NotNull Table<Type> table,
-                               @NotNull TableField<Type, KeyType> keyField,
-                               boolean isKeySerial,
-                               @NotNull TableField<Type, ?> ... exclusiveFields) {
+    @SafeVarargs
+    @Inject
+    public AbstractDao(@NotNull Class<Type> pojoClazz,
+                       @NotNull HikariDataSource dataSource,
+                       @NotNull Table<RecordType> table,
+                       @NotNull TableField<RecordType, KeyType> keyField,
+                       boolean isKeySerial,
+                       @NotNull TableField<RecordType, ?>... exclusiveFields) {
         super(dataSource);
+        this.clazz = pojoClazz;
         this.table = table;
         this.keyField = keyField;
         this.isKeySerial = isKeySerial;
@@ -30,40 +35,50 @@ public abstract class AbstractDao<Type extends UpdatableRecord<?>, KeyType> exte
 
     public @Nullable Type read(KeyType id) {
         try (var c = getConnection()) {
-            return c.context().fetchOne(table, keyField.eq(id));
+            return c.context()
+                    .fetchOptional(table, keyField.eq(id))
+                    .map(r -> r.into(clazz))
+                    .orElse(null);
         }
     }
 
     public @NotNull List<@NotNull Type> all() {
         try (var c = getConnection()) {
-            return c.context().fetch(table);
+            return c.context()
+                    .fetch(table)
+                    .into(clazz);
         }
     }
 
     public @Nullable Type create(@NotNull Type item) {
         try (var c = getConnection()) {
+            var record = c.context().newRecord(table, item);
             if (isKeySerial)
-                item.reset(keyField);
+                record.reset(keyField);
             return c.context()
                     .insertInto(table)
-                    .set(item)
+                    .set(record)
                     .onConflict(exclusiveFields)
                     .doUpdate()
-                    .set(item)
+                    .set(record)
                     .returning()
-                    .fetchOne();
+                    .fetchOptional()
+                    .map(r -> r.into(clazz))
+                    .orElse(null);
         }
     }
 
     public boolean update(@NotNull Type item) {
         try (var c = getConnection()) {
-            return c.context().executeUpdate(item) != 0;
+            var record = c.context().newRecord(table, item);
+            return c.context().executeUpdate(record) != 0;
         }
     }
 
     public boolean delete(@NotNull Type item) {
         try (var c = getConnection()) {
-            return c.context().executeDelete(item) != 0;
+            var record = c.context().newRecord(table, item);
+            return c.context().executeDelete(record) != 0;
         }
     }
 }

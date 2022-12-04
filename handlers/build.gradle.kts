@@ -1,3 +1,3 @@
 dependencies {
-    implementation(project(":servlets"))
+    implementation(project(":database"))
 }

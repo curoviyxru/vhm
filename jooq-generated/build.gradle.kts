@@ -1,5 +1,5 @@
 dependencies {
-    jooqGenerator("org.postgresql:postgresql:42.5.0")
+    jooqGenerator("org.postgresql:postgresql:42.5.1")
 }
 
 jooq {

@@ -9,7 +9,6 @@ import moe.crx.handlers.HandlersFactory;
 import moe.crx.handlers.HandlersModule;
 import moe.crx.security.JDBCLogin;
 import moe.crx.security.SecurityModule;
-import moe.crx.servlets.ServletsModule;
 import org.flywaydb.core.Flyway;
 import org.jetbrains.annotations.NotNull;
 
@@ -21,7 +20,6 @@ public final class Starter {
         injector = injector.createChildInjector(
                 new DatabaseModule(args),
                 new SecurityModule(),
-                new ServletsModule(),
                 new HandlersModule()
         );
 
@@ -29,8 +27,8 @@ public final class Starter {
 
         final var server = injector.getInstance(ServerFactory.class).getServer(8080);
         final var login = injector.getInstance(JDBCLogin.class);
-        final var handlers = injector.getInstance(HandlersFactory.class);
-        login.getSecurityHandler().setHandler(handlers.getHandlers());
+        final var factory = injector.getInstance(HandlersFactory.class);
+        login.getSecurityHandler().setHandler(factory.getHandlers());
         login.applyTo(server);
         server.start();
     }

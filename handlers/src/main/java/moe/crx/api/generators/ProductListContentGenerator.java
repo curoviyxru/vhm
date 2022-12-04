@@ -1,9 +1,9 @@
-package moe.crx.servlets;
+package moe.crx.api.generators;
 
-import moe.crx.jooq.tables.records.OrganizationsRecord;
-import moe.crx.jooq.tables.records.ProductsRecord;
+import moe.crx.dto.Organization;
+import moe.crx.dto.Product;
+import org.jetbrains.annotations.NotNull;
 
-import java.io.PrintWriter;
 import java.util.List;
 import java.util.Objects;
 
@@ -28,24 +28,38 @@ public final class ProductListContentGenerator {
                                     <input type="submit" value="Add product">
                                 </p>
                             </form>
+                            <form action="/products/delete" method="post">
+                                <p>
+                                    Name: <input type="text" name="name" value="">
+                                </p>
+                                <p>
+                                    <input type="submit" value="Delete product">
+                                </p>
+                            </form>
                         </body>
                     </html>""";
 
-    public void writeContent(PrintWriter writer,
-                               List<OrganizationsRecord> organizations,
-                               List<ProductsRecord> products) {
-        writer.append(CONTENT_BEGIN);
+    public @NotNull String writeContent(@NotNull List<Product> products,
+                               @NotNull List<Organization> organizations) {
+        StringBuilder builder = new StringBuilder();
+        builder.append(CONTENT_BEGIN);
         products.forEach(product -> {
-            var org =
-                    organizations.stream().filter(o -> Objects.equals(o.getId(), product.getOrgId())).findAny().get();
-            writer.printf(CONTENT_ROW,
+            var org = organizations
+                    .stream()
+                    .filter(o -> Objects.equals(o.getId(), product.getOrgId()))
+                    .findAny()
+                    .orElse(new Organization());
+            builder.append(String.format(
+                    CONTENT_ROW,
                     product.getId(),
                     org.getName(),
                     org.getId(),
                     product.getName(),
-                    product.getAmount());
+                    product.getAmount()
+            ));
         });
-        writer.append(CONTENT_END);
+        builder.append(CONTENT_END);
+        return builder.toString();
     }
 
 }

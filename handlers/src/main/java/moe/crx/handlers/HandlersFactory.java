@@ -1,29 +1,24 @@
 package moe.crx.handlers;
 
 import com.google.inject.Inject;
-import moe.crx.servlets.ServletContextHandlerFactory;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.stream.Stream;
+
 public final class HandlersFactory {
 
-    private final ResourceHandlerFactory resourceHandlerFactory;
-    private final ServletContextHandlerFactory servletContextHandlerFactory;
+    private final IHandlerFactory[] factories;
 
     @Inject
-    public HandlersFactory(@NotNull ResourceHandlerFactory resourceHandlerFactory,
-                           @NotNull ServletContextHandlerFactory servletContextHandlerFactory) {
-        this.resourceHandlerFactory = resourceHandlerFactory;
-        this.servletContextHandlerFactory = servletContextHandlerFactory;
+    public HandlersFactory(@NotNull IHandlerFactory... factories) {
+        this.factories = factories;
     }
 
-    public Handler getHandlers() {
+    public @NotNull Handler getHandlers() {
         final var list = new HandlerList();
-        list.setHandlers(new Handler[] {
-                resourceHandlerFactory.getHandler(),
-                servletContextHandlerFactory.getHandler()
-        });
+        list.setHandlers(Stream.of(factories).map(IHandlerFactory::getHandler).toArray(Handler[]::new));
         return list;
     }
 }
