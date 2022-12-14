@@ -24,7 +24,7 @@ public abstract class EnumerableFactory<T extends Verticle> extends JavaVerticle
 
     @Override
     public String prefix() {
-        return verticleType().getSimpleName() + "Factory";
+        return verticleType().getSimpleName() + "Factory#" + hashCode();
     }
 
     @Override
