@@ -5,6 +5,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
+import java.util.stream.Stream;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,7 +23,7 @@ public final class InputArgs {
     private int startId = 0;
     private int maxMembers = 10;
     private int maxModerators = 1;
-    private int moderatorClanId = 0;
+    private List<Integer> moderatorClanId = List.of(0);
     private int joinProbability = 50;
     private int joinDelay = 5000;
     private int chatDelay = 10000;
@@ -49,7 +52,18 @@ public final class InputArgs {
                         case START_ID -> startId = Integer.parseInt(arg);
                         case MAX_MEMBERS -> maxMembers = Integer.parseInt(arg);
                         case MAX_MODERATORS -> maxModerators = Integer.parseInt(arg);
-                        case MODERATOR_CLAN_ID -> moderatorClanId = Integer.parseInt(arg);
+                        case MODERATOR_CLAN_ID -> {
+                            if (arg.contains(",")) {
+                                moderatorClanId = Stream
+                                        .of(arg.trim().split(","))
+                                        .filter(s -> !s.isBlank())
+                                        .map(Integer::parseInt)
+                                        .toList();
+                                if (moderatorClanId.isEmpty())
+                                    moderatorClanId = List.of(0);
+                            }
+                            else moderatorClanId = List.of(Integer.parseInt(arg));
+                        }
                         case JOIN_PROBABILITY -> joinProbability = Integer.parseInt(arg);
                         case JOIN_DELAY -> joinDelay = Integer.parseInt(arg);
                         case CHAT_DELAY -> chatDelay = Integer.parseInt(arg);

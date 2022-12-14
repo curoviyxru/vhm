@@ -27,11 +27,12 @@ public final class Starter {
                     vertx.registerVerticleFactory(factory);
                     vertx.deployVerticle(factory.deployName(), new DeploymentOptions().setInstances(args.getCount()));
                 }
-                case "moderator" -> {
-                    var factory = new Moderator.Factory(args.getStartId(), args.getModeratorClanId());
+                case "moderator" -> args.getModeratorClanId().forEach(clanId -> {
+                    var factory = new Moderator.Factory(args.getStartId(), clanId);
                     vertx.registerVerticleFactory(factory);
                     vertx.deployVerticle(factory.deployName(), new DeploymentOptions().setInstances(args.getCount()));
-                }
+                    vertx.unregisterVerticleFactory(factory);
+                });
                 case "member" -> {
                     var factory = new Member.Factory(args.getStartId(), args.getJoinProbability(), args.getJoinDelay(), args.getChatDelay());
                     vertx.registerVerticleFactory(factory);
