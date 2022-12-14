@@ -27,7 +27,8 @@ public final class JsonMessageCodec implements MessageCodec<Object, Object> {
 
         try {
             return json.getJsonObject(classType).mapTo(Class.forName(classType));
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         return null;
     }

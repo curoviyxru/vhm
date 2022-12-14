@@ -33,10 +33,9 @@ public final class ClanWatcher extends AbstractVerticle {
     }
 
     interface ClansOperation<T> {
-        void perform(Message<T> event,
-                     AsyncMap<String, ArrayList<String>> map,
-                     ArrayList<String> clanList);
+        void perform(Message<T> event, AsyncMap<String, ArrayList<String>> map, ArrayList<String> list);
     }
+
     private <T> void lockAndGetClanList(Message<T> event, ClansOperation<T> operation) {
         vertx.sharedData().getLock(OPENED_CLANS, lockResult -> {
             if (lockResult.failed()) {
@@ -59,18 +58,25 @@ public final class ClanWatcher extends AbstractVerticle {
                         return;
                     }
 
-                    var clanList = Objects.requireNonNullElse(getResult.result(), new ArrayList<String>());
-                    operation.perform(event, map, clanList);
+                    var list = Objects.requireNonNullElse(getResult.result(), new ArrayList<String>());
+                    try {
+                        operation.perform(event, map, list);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                     lockResult.result().release();
                 });
             });
         });
     }
 
-    private void registerClan(Message<ClanRegister> event,
-                              AsyncMap<String, ArrayList<String>> map,
-                              ArrayList<String> clanList) {
+    private void registerClan(Message<ClanRegister> event, AsyncMap<String, ArrayList<String>> map, ArrayList<String> clanList) {
         final var clan = event.body();
+        if (clan == null) {
+            event.fail(INTERNAL_ERROR, "body_is_null");
+            return;
+        }
+
         final var name = clan.getClanName();
 
         if (clanList.contains(name)) {
@@ -91,10 +97,13 @@ public final class ClanWatcher extends AbstractVerticle {
         });
     }
 
-    private void unregisterClan(Message<ClanUnregister> event,
-                                AsyncMap<String, ArrayList<String>> map,
-                                ArrayList<String> clanList) {
+    private void unregisterClan(Message<ClanUnregister> event, AsyncMap<String, ArrayList<String>> map, ArrayList<String> clanList) {
         final var clan = event.body();
+        if (clan == null) {
+            event.fail(INTERNAL_ERROR, "body_is_null");
+            return;
+        }
+
         final var name = clan.getClanName();
 
         if (!clanList.contains(name)) {
@@ -115,9 +124,7 @@ public final class ClanWatcher extends AbstractVerticle {
         });
     }
 
-    private void getActiveClans(Message<Object> event,
-                                AsyncMap<String, ArrayList<String>> map,
-                                ArrayList<String> clanList) {
+    private void getActiveClans(Message<Object> event, AsyncMap<String, ArrayList<String>> map, ArrayList<String> clanList) {
         event.reply(new ActiveClansResponse(clanList));
         System.out.printf("[ClanWatcher] Serving active clans list. (%d clans)%n", clanList.size());
     }

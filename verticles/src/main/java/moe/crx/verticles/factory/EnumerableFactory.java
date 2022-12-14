@@ -14,10 +14,6 @@ public abstract class EnumerableFactory<T extends Verticle> extends JavaVerticle
         this.nextId = nextId;
     }
 
-    public EnumerableFactory() {
-        this(0);
-    }
-
     public int getNextId() {
         return nextId++;
     }

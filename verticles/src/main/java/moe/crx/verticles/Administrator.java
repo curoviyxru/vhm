@@ -4,7 +4,6 @@ import io.vertx.core.Promise;
 import moe.crx.api.requests.ClanJoin;
 import moe.crx.api.requests.ClanRegister;
 import moe.crx.api.requests.ClanUnregister;
-import moe.crx.api.requests.MemberSend;
 import moe.crx.api.responses.ClanJoinResponse;
 import moe.crx.api.responses.ClanMembersResponse;
 import moe.crx.verticles.factory.EnumerableFactory;
@@ -73,15 +72,20 @@ public final class Administrator extends AbstractModerator {
                         }
 
                         vertx.eventBus().<String>request(CLAN_REGISTER, request, handler -> {
+                            lockResult.result().release();
+
                             if (handler.failed()) {
-                                lockResult.result().release();
                                 System.out.printf("[%s] Clan failed to register with message: %s%n", clanName, handler.cause());
                                 startPromise.fail(handler.cause());
                                 return;
                             }
 
-                            lockResult.result().release();
                             var response = handler.result().body();
+                            if (response == null) {
+                                startPromise.fail("body_is_null");
+                                return;
+                            }
+
                             System.out.printf("[%s] Clan registered with message: %s%n", clanName, response);
 
                             listenRequests();
@@ -98,122 +102,68 @@ public final class Administrator extends AbstractModerator {
     private void listenRequests() {
         vertx.eventBus().<ClanJoin>consumer(clanName + CLAN_JOIN_MODERATOR, event -> {
             var request = event.body();
+            if (request == null) {
+                event.fail(INTERNAL_ERROR, "body_is_null");
+                return;
+            }
+
             if (!request.getUserType().equals(MODERATOR)) return;
 
-            vertx.sharedData().getLock(clanName, lockResult -> {
-                if (lockResult.failed()) {
-                    event.fail(INTERNAL_ERROR, "get_lock_error");
+            lockAndGetMembersList(event, clanName, (e, map, list) -> {
+                if (list.size() >= maxMembers) {
+                    event.fail(REGISTRATION_ERROR, "maximum_members");
                     return;
                 }
 
-                vertx.sharedData().<String, ArrayList<String>>getAsyncMap(clanName + CLAN_MEMBERS, mapResult -> {
-                    if (mapResult.failed()) {
-                        lockResult.result().release();
-                        event.fail(INTERNAL_ERROR, "get_members_map_error");
+                if (list.contains(request.getUserName())) {
+                    event.fail(REGISTRATION_ERROR, "member_already_registered");
+                    return;
+                }
+
+                vertx.sharedData().getCounter(clanName + CLAN_MODERATORS, modCounterResult -> {
+                    if (modCounterResult.failed()) {
+                        event.fail(INTERNAL_ERROR, "get_moderators_counter_error");
                         return;
                     }
 
-                    var map = mapResult.result();
-                    map.get(clanName + CLAN_MEMBERS, getResult -> {
-                        if (getResult.failed()) {
-                            lockResult.result().release();
-                            event.fail(INTERNAL_ERROR, "get_members_error");
+                    var modCounter = modCounterResult.result();
+                    modCounter.get(modGetResult -> {
+                        if (modGetResult.failed()) {
+                            event.fail(INTERNAL_ERROR, "get_moderators_error");
                             return;
                         }
 
-                        var list = Objects.requireNonNullElse(getResult.result(), new ArrayList<String>());
-
-                        if (list.size() >= maxMembers) {
-                            lockResult.result().release();
-                            event.fail(REGISTRATION_ERROR, "maximum_members");
+                        var moderatorsCount = modGetResult.result();
+                        if (moderatorsCount >= maxModerators) {
+                            event.fail(REGISTRATION_ERROR, "maximum_moderators");
                             return;
                         }
 
-                        if (list.contains(request.getUserName())) {
-                            lockResult.result().release();
-                            event.fail(REGISTRATION_ERROR, "member_already_registered");
-                            return;
-                        }
-
-                        vertx.sharedData().getCounter(clanName + CLAN_MODERATORS, modCounterResult -> {
-                            if (modCounterResult.failed()) {
-                                lockResult.result().release();
-                                event.fail(INTERNAL_ERROR, "get_moderators_counter_error");
+                        modCounter.incrementAndGet(modAddResult -> {
+                            if (modGetResult.failed()) {
+                                event.fail(INTERNAL_ERROR, "add_moderators_error");
                                 return;
                             }
 
-                            var modCounter = modCounterResult.result();
-                            modCounter.get(modGetResult -> {
-                                if (modGetResult.failed()) {
-                                    lockResult.result().release();
-                                    event.fail(INTERNAL_ERROR, "get_moderators_error");
+                            list.add(request.getUserName());
+                            map.put(clanName + CLAN_MEMBERS, list, putResult -> {
+                                if (putResult.failed()) {
+                                    event.fail(INTERNAL_ERROR, "put_members_error");
                                     return;
                                 }
 
-                                var moderatorsCount = modGetResult.result();
-                                if (moderatorsCount >= maxModerators) {
-                                    lockResult.result().release();
-                                    event.fail(REGISTRATION_ERROR, "maximum_moderators");
-                                    return;
-                                }
-
-                                modCounter.incrementAndGet(modAddResult -> {
-                                    if (modGetResult.failed()) {
-                                        lockResult.result().release();
-                                        event.fail(INTERNAL_ERROR, "add_moderators_error");
-                                        return;
-                                    }
-
-                                    list.add(request.getUserName());
-                                    map.put(clanName + CLAN_MEMBERS, list, putResult -> {
-                                        if (putResult.failed()) {
-                                            lockResult.result().release();
-                                            event.fail(INTERNAL_ERROR, "put_members_error");
-                                            return;
-                                        }
-
-                                        lockResult.result().release();
-                                        event.reply(new ClanJoinResponse(MEMBER_JOINED, maxMembers));
-                                        System.out.printf("[%s] User %s added.%n", clanName, request.getUserName());
-                                    });
-                                });
+                                event.reply(new ClanJoinResponse(MEMBER_JOINED, maxMembers));
+                                System.out.printf("[%s] User %s added.%n", clanName, request.getUserName());
                             });
                         });
                     });
                 });
             });
         });
-        vertx.eventBus().consumer(clanName + CLAN_MEMBERS_LIST, event -> {
-            vertx.sharedData().getLock(clanName, lockResult -> {
-                if (lockResult.failed()) {
-                    event.fail(INTERNAL_ERROR, "get_lock_error");
-                    return;
-                }
-
-                vertx.sharedData().<String, ArrayList<String>>getAsyncMap(clanName + CLAN_MEMBERS, mapResult -> {
-                    if (mapResult.failed()) {
-                        lockResult.result().release();
-                        event.fail(INTERNAL_ERROR, "get_members_map_error");
-                        return;
-                    }
-
-                    var map = mapResult.result();
-                    map.get(clanName + CLAN_MEMBERS, getResult -> {
-                        if (getResult.failed()) {
-                            lockResult.result().release();
-                            event.fail(INTERNAL_ERROR, "get_members_error");
-                            return;
-                        }
-
-                        var list = Objects.requireNonNullElse(getResult.result(), new ArrayList<String>());
-
-                        lockResult.result().release();
-                        event.reply(new ClanMembersResponse(list));
-                        System.out.printf("[%s] Serving clan members list. (%d members)%n", clanName, list.size());
-                    });
-                });
-            });
-        });
+        vertx.eventBus().consumer(clanName + CLAN_MEMBERS_LIST, event -> lockAndGetMembersList(event, clanName, (e, map, list) -> {
+            event.reply(new ClanMembersResponse(list));
+            System.out.printf("[%s] Serving clan members list. (%d members)%n", clanName, list.size());
+        }));
     }
 
     @Override
@@ -227,6 +177,11 @@ public final class Administrator extends AbstractModerator {
             }
 
             var response = handler.result().body();
+            if (response == null) {
+                stopPromise.fail("body_is_null");
+                return;
+            }
+
             System.out.printf("[%s] Clan unregistered with message: %s%n", clanName, response);
 
             stopPromise.complete();
@@ -240,10 +195,8 @@ public final class Administrator extends AbstractModerator {
 
         public Factory(int startId, int maxMembers, int maxModerators) {
             super(startId);
-            if (maxMembers <= 0)
-                throw new RuntimeException("Invalid max members count.");
-            if (maxModerators < 0)
-                throw new RuntimeException("Invalid max moderators count.");
+            if (maxMembers <= 0) throw new RuntimeException("Invalid max members count.");
+            if (maxModerators < 0) throw new RuntimeException("Invalid max moderators count.");
             if (maxMembers < maxModerators)
                 throw new RuntimeException("Invalid arguments: max members < max moderators.");
             this.maxMembers = maxMembers;
@@ -258,8 +211,7 @@ public final class Administrator extends AbstractModerator {
         @Override
         public Administrator createVerticle() {
             var nextId = getNextId();
-            return new Administrator(String.format(CLAN_NAME_FORMAT, nextId), String.format(ADMIN_NAME_FORMAT, nextId),
-                    maxMembers, maxModerators);
+            return new Administrator(String.format(CLAN_NAME_FORMAT, nextId), String.format(ADMIN_NAME_FORMAT, nextId), maxMembers, maxModerators);
         }
     }
 }

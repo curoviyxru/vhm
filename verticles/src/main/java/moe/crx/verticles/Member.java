@@ -13,6 +13,7 @@ import static moe.crx.api.requests.ClanJoin.MEMBER;
 import static moe.crx.verticles.Administrator.CLAN_JOIN;
 import static moe.crx.verticles.Administrator.CLAN_MEMBERS_LIST;
 import static moe.crx.verticles.ClanWatcher.CLAN_LIST;
+import static moe.crx.verticles.ClanWatcher.INTERNAL_ERROR;
 
 public final class Member extends AbstractMember {
 
@@ -41,71 +42,75 @@ public final class Member extends AbstractMember {
     }
 
     private void tryJoin() {
-        vertx.setTimer(joinDelay, timerHandler -> {
-            vertx.eventBus().<ActiveClansResponse>request(CLAN_LIST, null, listHandler -> {
-                if (listHandler.failed()) {
+        vertx.setTimer(joinDelay, timerHandler -> vertx.eventBus().<ActiveClansResponse>request(CLAN_LIST, null, listHandler -> {
+            if (listHandler.failed()) {
+                if (random.nextInt(FULL_PROBABILITY) >= joinProbability) {
+                    System.out.printf("[%s] I can't get clans list! ;( Will try again later...%n", userName);
+                    tryJoin();
+                } else {
+                    System.out.printf("[%s] I can't get clans list! ;( I'm tired...%n", userName);
+                }
+                return;
+            }
+
+            var body = listHandler.result().body();
+            if (body == null) {
+                return;
+            }
+            var response = body.getClans();
+            var randomId = random.nextInt(response.size());
+            var clanName = response.get(randomId);
+            var request = new ClanJoin(MEMBER, userName);
+
+            System.out.printf("[%s] Trying to join clan %s! :/%n", userName, clanName);
+            vertx.eventBus().<String>request(clanName + CLAN_JOIN, request, joinHandler -> {
+                if (joinHandler.failed()) {
                     if (random.nextInt(FULL_PROBABILITY) >= joinProbability) {
-                        System.out.printf("[%s] I can't get clans list! ;( Will try again later...%n", userName);
+                        System.out.printf("[%s] I failed to join clan %s! ;( Will try again later...%n", userName, clanName);
                         tryJoin();
                     } else {
-                        System.out.printf("[%s] I can't get clans list! ;( I'm tired...%n", userName);
+                        System.out.printf("[%s] I failed to join clan %s! ;( I'm tired...%n", userName, clanName);
                     }
                     return;
                 }
 
-                var response = listHandler.result().body().getClans();
-                var randomId = random.nextInt(response.size());
-                var clanName = response.get(randomId);
-                var request = new ClanJoin(MEMBER, userName);
-
-                System.out.printf("[%s] Trying to join clan %s! :/%n", userName, clanName);
-                vertx.eventBus().<String>request(clanName + CLAN_JOIN, request, joinHandler -> {
-                    if (joinHandler.failed()) {
-                        if (random.nextInt(FULL_PROBABILITY) >= joinProbability) {
-                            System.out.printf("[%s] I failed to join clan %s! ;( Will try again later...%n", userName, clanName);
-                            tryJoin();
-                        } else {
-                            System.out.printf("[%s] I failed to join clan %s! ;( I'm tired...%n", userName, clanName);
-                        }
-                        return;
-                    }
-
-                    this.currentClanName = clanName;
-                    System.out.printf("[%s] I joined clan %s! Yay! :)%n", userName, clanName);
-                    startChatting();
-                });
+                this.currentClanName = clanName;
+                System.out.printf("[%s] I joined clan %s! Yay! :)%n", userName, clanName);
+                startChatting();
             });
-        });
+        }));
     }
 
     private void startChatting() {
         startListeningToChat(currentClanName, userName);
-        vertx.setPeriodic(chatDelay, chatTimerHandler -> {
-            vertx.eventBus().<ClanMembersResponse>request(currentClanName + CLAN_MEMBERS_LIST, null, clanHandler -> {
-                if (clanHandler.failed()) {
-                    System.out.printf("[%s] I failed to get members of clan %s! ;( Will try again later...%n", userName, currentClanName);
+        vertx.setPeriodic(chatDelay, chatTimerHandler -> vertx.eventBus().<ClanMembersResponse>request(currentClanName + CLAN_MEMBERS_LIST, null, clanHandler -> {
+            if (clanHandler.failed()) {
+                System.out.printf("[%s] I failed to get members of clan %s! ;( Will try again later...%n", userName, currentClanName);
+                return;
+            }
+
+            var body = clanHandler.result().body();
+            if (body == null) {
+                return;
+            }
+            var list = body.getMembers();
+            var randomId = random.nextInt(list.size());
+            while (list.size() > 1 && list.get(randomId).equals(userName)) {
+                randomId = random.nextInt(list.size());
+            }
+            var recipient = list.get(randomId);
+            var request = new MemberSend(userName, String.format(MESSAGE_FORMAT, recipient));
+
+            System.out.printf("[%s] Trying to send message to %s! :/%n", userName, recipient);
+            vertx.eventBus().<String>request(currentClanName + '.' + recipient + MEMBER_SEND, request, sendHandler -> {
+                if (sendHandler.failed()) {
+                    System.out.printf("[%s] I failed to send message to %s! ;( Will try again later...%n", userName, recipient);
                     return;
                 }
 
-                var list = clanHandler.result().body().getMembers();
-                var randomId = random.nextInt(list.size());
-                while (list.size() > 1 && list.get(randomId).equals(userName)) {
-                    randomId = random.nextInt(list.size());
-                }
-                var recipient = list.get(randomId);
-                var request = new MemberSend(userName, String.format(MESSAGE_FORMAT, recipient));
-
-                System.out.printf("[%s] Trying to send message to %s! :/%n", userName, recipient);
-                vertx.eventBus().<String>request(currentClanName + '.' + recipient + MEMBER_SEND, request, sendHandler -> {
-                    if (sendHandler.failed()) {
-                        System.out.printf("[%s] I failed to send message to %s! ;( Will try again later...%n", userName, recipient);
-                        return;
-                    }
-
-                    System.out.printf("[%s] I sent message to %s! Yay! :)%n", userName, recipient);
-                });
+                System.out.printf("[%s] I sent message to %s! Yay! :)%n", userName, recipient);
             });
-        });
+        }));
     }
 
     @Override
