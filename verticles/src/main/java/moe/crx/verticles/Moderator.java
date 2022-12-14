@@ -7,12 +7,10 @@ import moe.crx.api.responses.ClanJoinResponse;
 import moe.crx.verticles.factory.EnumerableFactory;
 
 import static moe.crx.api.requests.ClanJoin.MODERATOR;
-import static moe.crx.verticles.Administrator.*;
-import static moe.crx.verticles.ClanWatcher.*;
+import static moe.crx.verticles.ClanConstants.*;
 
 public final class Moderator extends AbstractModerator {
 
-    public static final String MODERATOR_NAME_FORMAT = "Moderator#%d";
     private final String userName;
     private final String clanName;
     private int maxMembers;
@@ -62,8 +60,8 @@ public final class Moderator extends AbstractModerator {
 
             if (request.getUserType().equals(MODERATOR)) return;
 
-            lockAndGetMembersList(event, clanName, (e, map, list) ->
-                    addNewMember(maxMembers, clanName, request.getUserName(), event, map, list));
+            lockAndGetMembersList(event, clanName, (e, lockResult, map, list) ->
+                    addNewMember(maxMembers, clanName, request.getUserName(), event, lockResult, map, list));
         });
     }
 

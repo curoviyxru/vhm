@@ -1,21 +1,21 @@
 package moe.crx.verticles;
 
+import io.vertx.core.AsyncResult;
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.shareddata.AsyncMap;
+import io.vertx.core.shareddata.Lock;
 import moe.crx.api.responses.ClanJoinResponse;
 
 import java.util.ArrayList;
 import java.util.Objects;
 
-import static moe.crx.verticles.Administrator.CLAN_MEMBERS;
-import static moe.crx.verticles.Administrator.MEMBER_JOINED;
-import static moe.crx.verticles.ClanWatcher.INTERNAL_ERROR;
-import static moe.crx.verticles.ClanWatcher.REGISTRATION_ERROR;
+import static moe.crx.verticles.ClanConstants.*;
 
 public abstract class AbstractModerator extends AbstractMember {
 
     interface MembersOperation<T> {
         void perform(Message<T> event,
+                     AsyncResult<Lock> lockResult,
                      AsyncMap<String, ArrayList<String>> map,
                      ArrayList<String> list);
     }
@@ -43,11 +43,10 @@ public abstract class AbstractModerator extends AbstractMember {
 
                     var list = Objects.requireNonNullElse(getResult.result(), new ArrayList<String>());
                     try {
-                        operation.perform(event, map, list);
+                        operation.perform(event, lockResult, map, list);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
-                    lockResult.result().release();
                 });
             });
         });
@@ -57,14 +56,17 @@ public abstract class AbstractModerator extends AbstractMember {
                                 String clanName,
                                 String userName,
                                 Message<T> event,
+                                AsyncResult<Lock> lockResult,
                                 AsyncMap<String, ArrayList<String>> map,
                                 ArrayList<String> list) {
         if (list.size() >= maxMembers) {
+            lockResult.result().release();
             event.fail(REGISTRATION_ERROR, "maximum_members");
             return;
         }
 
         if (list.contains(userName)) {
+            lockResult.result().release();
             event.fail(REGISTRATION_ERROR, "member_already_registered");
             return;
         }
@@ -72,10 +74,12 @@ public abstract class AbstractModerator extends AbstractMember {
         list.add(userName);
         map.put(clanName + CLAN_MEMBERS, list, putResult -> {
             if (putResult.failed()) {
+                lockResult.result().release();
                 event.fail(INTERNAL_ERROR, "put_members_error");
                 return;
             }
 
+            lockResult.result().release();
             event.reply(new ClanJoinResponse(MEMBER_JOINED, maxMembers).toJson());
             System.out.printf("[%s] User %s added.%n", clanName, userName);
         });

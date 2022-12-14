@@ -21,18 +21,26 @@ public final class Starter {
             final var vertx = result.result();
 
             switch (args.getType()) {
-                case "watcher" -> vertx.deployVerticle(new ClanWatcher());
+                case "watcher" -> {
+                    var factory = new ClanWatcher.Factory(args.getStartId());
+                    vertx.registerVerticleFactory(factory);
+                    vertx.deployVerticle(factory.deployName(), new DeploymentOptions().setInstances(args.getCount()));
+                }
                 case "administrator" -> {
                     var factory = new Administrator.Factory(args.getStartId(), args.getMaxMembers(), args.getMaxModerators());
                     vertx.registerVerticleFactory(factory);
                     vertx.deployVerticle(factory.deployName(), new DeploymentOptions().setInstances(args.getCount()));
                 }
-                case "moderator" -> args.getModeratorClanId().forEach(clanId -> {
-                    var factory = new Moderator.Factory(args.getStartId(), clanId);
-                    vertx.registerVerticleFactory(factory);
-                    vertx.deployVerticle(factory.deployName(), new DeploymentOptions().setInstances(args.getCount()));
-                    vertx.unregisterVerticleFactory(factory);
-                });
+                case "moderator" -> {
+                    var offset = 0;
+                    for (Integer clanId : args.getModeratorClanId()) {
+                        var factory = new Moderator.Factory(args.getStartId() + offset, clanId);
+                        vertx.registerVerticleFactory(factory);
+                        vertx.deployVerticle(factory.deployName(), new DeploymentOptions().setInstances(args.getCount()));
+                        vertx.unregisterVerticleFactory(factory);
+                        offset += args.getCount();
+                    }
+                }
                 case "member" -> {
                     var factory = new Member.Factory(args.getStartId(), args.getJoinProbability(), args.getJoinDelay(), args.getChatDelay());
                     vertx.registerVerticleFactory(factory);

@@ -4,13 +4,9 @@ import io.vertx.core.AbstractVerticle;
 import io.vertx.core.json.JsonObject;
 import moe.crx.api.requests.MemberSend;
 
-import static moe.crx.verticles.ClanWatcher.BAD_REQUEST_ERROR;
-import static moe.crx.verticles.ClanWatcher.INTERNAL_ERROR;
+import static moe.crx.verticles.ClanConstants.*;
 
 public abstract class AbstractMember extends AbstractVerticle {
-
-    public static final String MEMBER_SEND = ".member.send";
-    public static final String GOT_MESSAGE = "got_message";
 
     protected void startListeningToChat(String currentClanName, String userName) {
         vertx.eventBus().<JsonObject>consumer(currentClanName + '.' + userName + MEMBER_SEND, event -> {

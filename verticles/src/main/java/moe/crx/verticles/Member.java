@@ -11,17 +11,12 @@ import moe.crx.verticles.factory.EnumerableFactory;
 import java.util.Random;
 
 import static moe.crx.api.requests.ClanJoin.MEMBER;
-import static moe.crx.verticles.Administrator.CLAN_JOIN;
-import static moe.crx.verticles.Administrator.CLAN_MEMBERS_LIST;
-import static moe.crx.verticles.ClanWatcher.CLAN_LIST;
-import static moe.crx.verticles.ClanWatcher.INTERNAL_ERROR;
+import static moe.crx.verticles.ClanConstants.*;
 
 public final class Member extends AbstractMember {
 
-    public static final String MEMBER_NAME_FORMAT = "Member#%d";
     private static final Random random = new Random();
     private static final int FULL_PROBABILITY = 100;
-    private static final String MESSAGE_FORMAT = "Hello, %s!";
 
     private final String userName;
     private String currentClanName;

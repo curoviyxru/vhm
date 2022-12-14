@@ -5,7 +5,6 @@ import io.vertx.core.json.JsonObject;
 import moe.crx.api.requests.ClanJoin;
 import moe.crx.api.requests.ClanRegister;
 import moe.crx.api.requests.ClanUnregister;
-import moe.crx.api.responses.ClanJoinResponse;
 import moe.crx.api.responses.ClanMembersResponse;
 import moe.crx.verticles.factory.EnumerableFactory;
 
@@ -13,18 +12,9 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 import static moe.crx.api.requests.ClanJoin.MODERATOR;
-import static moe.crx.verticles.ClanWatcher.*;
+import static moe.crx.verticles.ClanConstants.*;
 
 public final class Administrator extends AbstractModerator {
-
-    public static final String CLAN_NAME_FORMAT = "Clan#%d";
-    public static final String ADMIN_NAME_FORMAT = "Admin#%d";
-    public static final String CLAN_JOIN_MODERATOR = ".clan.join.moderator";
-    public static final String CLAN_JOIN = ".clan.join";
-    public static final String CLAN_MEMBERS = ".clan.members";
-    public static final String CLAN_MODERATORS = ".clan.moderators";
-    public static final String MEMBER_JOINED = "member_joined";
-    public static final String CLAN_MEMBERS_LIST = ".clan.members.list";
 
     private final String clanName;
     private final String userName;
@@ -112,39 +102,42 @@ public final class Administrator extends AbstractModerator {
 
             if (!request.getUserType().equals(MODERATOR)) return;
 
-            lockAndGetMembersList(event, clanName, (e, map, list) -> {
-                vertx.sharedData().getCounter(clanName + CLAN_MODERATORS, modCounterResult -> {
-                    if (modCounterResult.failed()) {
-                        event.fail(INTERNAL_ERROR, "get_moderators_counter_error");
+            lockAndGetMembersList(event, clanName, (e, lockResult, map, list) -> vertx.sharedData().getCounter(clanName + CLAN_MODERATORS, modCounterResult -> {
+                if (modCounterResult.failed()) {
+                    lockResult.result().release();
+                    event.fail(INTERNAL_ERROR, "get_moderators_counter_error");
+                    return;
+                }
+
+                var modCounter = modCounterResult.result();
+                modCounter.get(modGetResult -> {
+                    if (modGetResult.failed()) {
+                        lockResult.result().release();
+                        event.fail(INTERNAL_ERROR, "get_moderators_error");
                         return;
                     }
 
-                    var modCounter = modCounterResult.result();
-                    modCounter.get(modGetResult -> {
+                    var moderatorsCount = modGetResult.result();
+                    if (moderatorsCount >= maxModerators) {
+                        lockResult.result().release();
+                        event.fail(REGISTRATION_ERROR, "maximum_moderators");
+                        return;
+                    }
+
+                    modCounter.incrementAndGet(modAddResult -> {
                         if (modGetResult.failed()) {
-                            event.fail(INTERNAL_ERROR, "get_moderators_error");
+                            lockResult.result().release();
+                            event.fail(INTERNAL_ERROR, "add_moderators_error");
                             return;
                         }
 
-                        var moderatorsCount = modGetResult.result();
-                        if (moderatorsCount >= maxModerators) {
-                            event.fail(REGISTRATION_ERROR, "maximum_moderators");
-                            return;
-                        }
-
-                        modCounter.incrementAndGet(modAddResult -> {
-                            if (modGetResult.failed()) {
-                                event.fail(INTERNAL_ERROR, "add_moderators_error");
-                                return;
-                            }
-
-                            addNewMember(maxMembers, clanName, request.getUserName(), event, map, list);
-                        });
+                        addNewMember(maxMembers, clanName, request.getUserName(), event, lockResult, map, list);
                     });
                 });
-            });
+            }));
         });
-        vertx.eventBus().consumer(clanName + CLAN_MEMBERS_LIST, event -> lockAndGetMembersList(event, clanName, (e, map, list) -> {
+        vertx.eventBus().consumer(clanName + CLAN_MEMBERS_LIST, event -> lockAndGetMembersList(event, clanName, (e, lockResult, map, list) -> {
+            lockResult.result().release();
             event.reply(new ClanMembersResponse(list).toJson());
             System.out.printf("[%s] Serving clan members list. (%d members)%n", clanName, list.size());
         }));
