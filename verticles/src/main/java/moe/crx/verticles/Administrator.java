@@ -1,6 +1,7 @@
 package moe.crx.verticles;
 
 import io.vertx.core.Promise;
+import io.vertx.core.json.JsonObject;
 import moe.crx.api.requests.ClanJoin;
 import moe.crx.api.requests.ClanRegister;
 import moe.crx.api.requests.ClanUnregister;
@@ -39,7 +40,7 @@ public final class Administrator extends AbstractModerator {
 
     @Override
     public void start(Promise<Void> startPromise) {
-        var request = new ClanRegister(clanName, maxMembers, maxModerators);
+        var request = new ClanRegister(clanName, maxMembers, maxModerators).toJson();
         vertx.sharedData().getLock(clanName, lockResult -> {
             if (lockResult.failed()) {
                 startPromise.fail(lockResult.cause());
@@ -100,26 +101,18 @@ public final class Administrator extends AbstractModerator {
     }
 
     private void listenRequests() {
-        vertx.eventBus().<ClanJoin>consumer(clanName + CLAN_JOIN_MODERATOR, event -> {
-            var request = event.body();
-            if (request == null) {
-                event.fail(INTERNAL_ERROR, "body_is_null");
+        vertx.eventBus().<JsonObject>consumer(clanName + CLAN_JOIN_MODERATOR, event -> {
+            var json = event.body();
+            if (json == null) {
+                event.fail(BAD_REQUEST_ERROR, "body_is_null");
                 return;
             }
+
+            var request = new ClanJoin().fromJson(json);
 
             if (!request.getUserType().equals(MODERATOR)) return;
 
             lockAndGetMembersList(event, clanName, (e, map, list) -> {
-                if (list.size() >= maxMembers) {
-                    event.fail(REGISTRATION_ERROR, "maximum_members");
-                    return;
-                }
-
-                if (list.contains(request.getUserName())) {
-                    event.fail(REGISTRATION_ERROR, "member_already_registered");
-                    return;
-                }
-
                 vertx.sharedData().getCounter(clanName + CLAN_MODERATORS, modCounterResult -> {
                     if (modCounterResult.failed()) {
                         event.fail(INTERNAL_ERROR, "get_moderators_counter_error");
@@ -145,30 +138,21 @@ public final class Administrator extends AbstractModerator {
                                 return;
                             }
 
-                            list.add(request.getUserName());
-                            map.put(clanName + CLAN_MEMBERS, list, putResult -> {
-                                if (putResult.failed()) {
-                                    event.fail(INTERNAL_ERROR, "put_members_error");
-                                    return;
-                                }
-
-                                event.reply(new ClanJoinResponse(MEMBER_JOINED, maxMembers));
-                                System.out.printf("[%s] User %s added.%n", clanName, request.getUserName());
-                            });
+                            addNewMember(maxMembers, clanName, request.getUserName(), event, map, list);
                         });
                     });
                 });
             });
         });
         vertx.eventBus().consumer(clanName + CLAN_MEMBERS_LIST, event -> lockAndGetMembersList(event, clanName, (e, map, list) -> {
-            event.reply(new ClanMembersResponse(list));
+            event.reply(new ClanMembersResponse(list).toJson());
             System.out.printf("[%s] Serving clan members list. (%d members)%n", clanName, list.size());
         }));
     }
 
     @Override
     public void stop(Promise<Void> stopPromise) {
-        var request = new ClanUnregister(clanName);
+        var request = new ClanUnregister(clanName).toJson();
         vertx.eventBus().<String>request(CLAN_UNREGISTER, request, handler -> {
             if (handler.failed()) {
                 System.out.printf("[%s] Clan failed to unregister with message: %s%n", clanName, handler.cause());

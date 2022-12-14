@@ -3,7 +3,6 @@ package moe.crx;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.VertxOptions;
-import moe.crx.verticles.codec.JsonMessageCodec;
 import moe.crx.verticles.Administrator;
 import moe.crx.verticles.ClanWatcher;
 import moe.crx.verticles.Member;
@@ -20,10 +19,6 @@ public final class Starter {
             }
 
             final var vertx = result.result();
-
-            var codec = new JsonMessageCodec();
-            vertx.eventBus().registerCodec(codec);
-            vertx.eventBus().codecSelector(body -> codec.name());
 
             switch (args.getType()) {
                 case "watcher" -> vertx.deployVerticle(new ClanWatcher());

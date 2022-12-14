@@ -1,14 +1,14 @@
 package moe.crx.verticles;
 
 import io.vertx.core.Promise;
+import io.vertx.core.json.JsonObject;
 import moe.crx.api.requests.ClanJoin;
 import moe.crx.api.responses.ClanJoinResponse;
 import moe.crx.verticles.factory.EnumerableFactory;
 
 import static moe.crx.api.requests.ClanJoin.MODERATOR;
 import static moe.crx.verticles.Administrator.*;
-import static moe.crx.verticles.ClanWatcher.INTERNAL_ERROR;
-import static moe.crx.verticles.ClanWatcher.REGISTRATION_ERROR;
+import static moe.crx.verticles.ClanWatcher.*;
 
 public final class Moderator extends AbstractModerator {
 
@@ -24,19 +24,21 @@ public final class Moderator extends AbstractModerator {
 
     @Override
     public void start(Promise<Void> startPromise) {
-        var request = new ClanJoin(MODERATOR, userName);
-        vertx.eventBus().<ClanJoinResponse>request(clanName + CLAN_JOIN_MODERATOR, request, handler -> {
+        var request = new ClanJoin(MODERATOR, userName).toJson();
+        vertx.eventBus().<JsonObject>request(clanName + CLAN_JOIN_MODERATOR, request, handler -> {
             if (handler.failed()) {
                 System.out.printf("[%s] I failed to join my clan %s. ;( It's time to rest! :P%n", userName, clanName);
                 startPromise.fail(handler.cause());
                 return;
             }
 
-            var response = handler.result().body();
-            if (response == null) {
+            var json = handler.result().body();
+            if (json == null) {
                 startPromise.fail("body_is_null");
                 return;
             }
+
+            var response = new ClanJoinResponse().fromJson(json);
 
             System.out.printf("[%s] Moderator joined clan %s (%d max members) with message: %s%n", userName, clanName, response.getMaxMembers(), response.getMessage());
 
@@ -49,37 +51,19 @@ public final class Moderator extends AbstractModerator {
     }
 
     private void listenRequests() {
-        vertx.eventBus().<ClanJoin>consumer(clanName + CLAN_JOIN, event -> {
-            var request = event.body();
-            if (request == null) {
-                event.fail(INTERNAL_ERROR, "body_is_null");
+        vertx.eventBus().<JsonObject>consumer(clanName + CLAN_JOIN, event -> {
+            var json = event.body();
+            if (json == null) {
+                event.fail(BAD_REQUEST_ERROR, "body_is_null");
                 return;
             }
 
+            var request = new ClanJoin().fromJson(json);
+
             if (request.getUserType().equals(MODERATOR)) return;
 
-            lockAndGetMembersList(event, clanName, (e, map, list) -> {
-                if (list.size() >= maxMembers) {
-                    event.fail(REGISTRATION_ERROR, "maximum_members");
-                    return;
-                }
-
-                if (list.contains(request.getUserName())) {
-                    event.fail(REGISTRATION_ERROR, "member_already_registered");
-                    return;
-                }
-
-                list.add(request.getUserName());
-                map.put(clanName + CLAN_MEMBERS, list, putResult -> {
-                    if (putResult.failed()) {
-                        event.fail(INTERNAL_ERROR, "put_members_error");
-                        return;
-                    }
-
-                    event.reply(new ClanJoinResponse(MEMBER_JOINED, maxMembers));
-                    System.out.printf("[%s] User %s added to clan %s.%n", userName, request.getUserName(), clanName);
-                });
-            });
+            lockAndGetMembersList(event, clanName, (e, map, list) ->
+                    addNewMember(maxMembers, clanName, request.getUserName(), event, map, list));
         });
     }
 

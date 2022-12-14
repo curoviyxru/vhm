@@ -1,6 +1,7 @@
 package moe.crx.verticles;
 
 import io.vertx.core.Promise;
+import io.vertx.core.json.JsonObject;
 import moe.crx.api.requests.ClanJoin;
 import moe.crx.api.requests.MemberSend;
 import moe.crx.api.responses.ActiveClansResponse;
@@ -42,7 +43,7 @@ public final class Member extends AbstractMember {
     }
 
     private void tryJoin() {
-        vertx.setTimer(joinDelay, timerHandler -> vertx.eventBus().<ActiveClansResponse>request(CLAN_LIST, null, listHandler -> {
+        vertx.setTimer(joinDelay, timerHandler -> vertx.eventBus().<JsonObject>request(CLAN_LIST, null, listHandler -> {
             if (listHandler.failed()) {
                 if (random.nextInt(FULL_PROBABILITY) >= joinProbability) {
                     System.out.printf("[%s] I can't get clans list! ;( Will try again later...%n", userName);
@@ -54,13 +55,13 @@ public final class Member extends AbstractMember {
             }
 
             var body = listHandler.result().body();
-            if (body == null) {
+            if (body == null)
                 return;
-            }
-            var response = body.getClans();
+
+            var response = new ActiveClansResponse().fromJson(body).getClans();
             var randomId = random.nextInt(response.size());
             var clanName = response.get(randomId);
-            var request = new ClanJoin(MEMBER, userName);
+            var request = new ClanJoin(MEMBER, userName).toJson();
 
             System.out.printf("[%s] Trying to join clan %s! :/%n", userName, clanName);
             vertx.eventBus().<String>request(clanName + CLAN_JOIN, request, joinHandler -> {
@@ -83,23 +84,23 @@ public final class Member extends AbstractMember {
 
     private void startChatting() {
         startListeningToChat(currentClanName, userName);
-        vertx.setPeriodic(chatDelay, chatTimerHandler -> vertx.eventBus().<ClanMembersResponse>request(currentClanName + CLAN_MEMBERS_LIST, null, clanHandler -> {
+        vertx.setPeriodic(chatDelay, chatTimerHandler -> vertx.eventBus().<JsonObject>request(currentClanName + CLAN_MEMBERS_LIST, null, clanHandler -> {
             if (clanHandler.failed()) {
                 System.out.printf("[%s] I failed to get members of clan %s! ;( Will try again later...%n", userName, currentClanName);
                 return;
             }
 
             var body = clanHandler.result().body();
-            if (body == null) {
+            if (body == null)
                 return;
-            }
-            var list = body.getMembers();
+
+            var list = new ClanMembersResponse().fromJson(body).getMembers();
             var randomId = random.nextInt(list.size());
             while (list.size() > 1 && list.get(randomId).equals(userName)) {
                 randomId = random.nextInt(list.size());
             }
             var recipient = list.get(randomId);
-            var request = new MemberSend(userName, String.format(MESSAGE_FORMAT, recipient));
+            var request = new MemberSend(userName, String.format(MESSAGE_FORMAT, recipient)).toJson();
 
             System.out.printf("[%s] Trying to send message to %s! :/%n", userName, recipient);
             vertx.eventBus().<String>request(currentClanName + '.' + recipient + MEMBER_SEND, request, sendHandler -> {

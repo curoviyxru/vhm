@@ -1,9 +1,16 @@
 package moe.crx.api.requests;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import moe.crx.api.Jsonable;
 
 @Data
-public final class MemberSend {
-    private final String userName;
-    private final String message;
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(callSuper=true)
+public final class MemberSend extends Jsonable<MemberSend> {
+    private String userName;
+    private String message;
 }

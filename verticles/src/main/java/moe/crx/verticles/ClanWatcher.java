@@ -3,6 +3,7 @@ package moe.crx.verticles;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
 import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.shareddata.AsyncMap;
 import moe.crx.api.requests.ClanRegister;
 import moe.crx.api.requests.ClanUnregister;
@@ -20,12 +21,13 @@ public final class ClanWatcher extends AbstractVerticle {
     public static final String CLAN_UNREGISTERED = "clan_unregistered";
     public static final int INTERNAL_ERROR = -1;
     public static final int REGISTRATION_ERROR = -2;
+    public static final int BAD_REQUEST_ERROR = -3;
     public static final String CLAN_LIST = "clan.list";
 
     @Override
     public void start(Promise<Void> startPromise) {
-        vertx.eventBus().<ClanRegister>consumer(CLAN_REGISTER, event -> lockAndGetClanList(event, this::registerClan));
-        vertx.eventBus().<ClanUnregister>consumer(CLAN_UNREGISTER, event -> lockAndGetClanList(event, this::unregisterClan));
+        vertx.eventBus().<JsonObject>consumer(CLAN_REGISTER, event -> lockAndGetClanList(event, this::registerClan));
+        vertx.eventBus().<JsonObject>consumer(CLAN_UNREGISTER, event -> lockAndGetClanList(event, this::unregisterClan));
         vertx.eventBus().consumer(CLAN_LIST, event -> lockAndGetClanList(event, this::getActiveClans));
 
         System.out.println("[ClanWatcher] Clan watcher started.");
@@ -70,13 +72,14 @@ public final class ClanWatcher extends AbstractVerticle {
         });
     }
 
-    private void registerClan(Message<ClanRegister> event, AsyncMap<String, ArrayList<String>> map, ArrayList<String> clanList) {
-        final var clan = event.body();
-        if (clan == null) {
-            event.fail(INTERNAL_ERROR, "body_is_null");
+    private void registerClan(Message<JsonObject> event, AsyncMap<String, ArrayList<String>> map, ArrayList<String> clanList) {
+        final var json = event.body();
+        if (json == null) {
+            event.fail(BAD_REQUEST_ERROR, "body_is_null");
             return;
         }
 
+        var clan = new ClanRegister().fromJson(json);
         final var name = clan.getClanName();
 
         if (clanList.contains(name)) {
@@ -97,13 +100,14 @@ public final class ClanWatcher extends AbstractVerticle {
         });
     }
 
-    private void unregisterClan(Message<ClanUnregister> event, AsyncMap<String, ArrayList<String>> map, ArrayList<String> clanList) {
-        final var clan = event.body();
-        if (clan == null) {
-            event.fail(INTERNAL_ERROR, "body_is_null");
+    private void unregisterClan(Message<JsonObject> event, AsyncMap<String, ArrayList<String>> map, ArrayList<String> clanList) {
+        final var json = event.body();
+        if (json == null) {
+            event.fail(BAD_REQUEST_ERROR, "body_is_null");
             return;
         }
 
+        var clan = new ClanUnregister().fromJson(json);
         final var name = clan.getClanName();
 
         if (!clanList.contains(name)) {
@@ -125,7 +129,7 @@ public final class ClanWatcher extends AbstractVerticle {
     }
 
     private void getActiveClans(Message<Object> event, AsyncMap<String, ArrayList<String>> map, ArrayList<String> clanList) {
-        event.reply(new ActiveClansResponse(clanList));
+        event.reply(new ActiveClansResponse(clanList).toJson());
         System.out.printf("[ClanWatcher] Serving active clans list. (%d clans)%n", clanList.size());
     }
 }

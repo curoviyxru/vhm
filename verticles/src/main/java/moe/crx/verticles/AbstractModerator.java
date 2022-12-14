@@ -2,12 +2,15 @@ package moe.crx.verticles;
 
 import io.vertx.core.eventbus.Message;
 import io.vertx.core.shareddata.AsyncMap;
+import moe.crx.api.responses.ClanJoinResponse;
 
 import java.util.ArrayList;
 import java.util.Objects;
 
 import static moe.crx.verticles.Administrator.CLAN_MEMBERS;
+import static moe.crx.verticles.Administrator.MEMBER_JOINED;
 import static moe.crx.verticles.ClanWatcher.INTERNAL_ERROR;
+import static moe.crx.verticles.ClanWatcher.REGISTRATION_ERROR;
 
 public abstract class AbstractModerator extends AbstractMember {
 
@@ -47,6 +50,34 @@ public abstract class AbstractModerator extends AbstractMember {
                     lockResult.result().release();
                 });
             });
+        });
+    }
+
+    protected <T> void addNewMember(int maxMembers,
+                                String clanName,
+                                String userName,
+                                Message<T> event,
+                                AsyncMap<String, ArrayList<String>> map,
+                                ArrayList<String> list) {
+        if (list.size() >= maxMembers) {
+            event.fail(REGISTRATION_ERROR, "maximum_members");
+            return;
+        }
+
+        if (list.contains(userName)) {
+            event.fail(REGISTRATION_ERROR, "member_already_registered");
+            return;
+        }
+
+        list.add(userName);
+        map.put(clanName + CLAN_MEMBERS, list, putResult -> {
+            if (putResult.failed()) {
+                event.fail(INTERNAL_ERROR, "put_members_error");
+                return;
+            }
+
+            event.reply(new ClanJoinResponse(MEMBER_JOINED, maxMembers).toJson());
+            System.out.printf("[%s] User %s added.%n", clanName, userName);
         });
     }
 }
