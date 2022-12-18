@@ -25,7 +25,7 @@ public final class Moderator extends AbstractModerator {
         var request = new ClanJoin(MODERATOR, userName).toJson();
         vertx.eventBus().<JsonObject>request(clanName + CLAN_JOIN_MODERATOR, request, handler -> {
             if (handler.failed()) {
-                System.out.printf("[%s] I failed to join my clan %s. ;( It's time to rest! :P%n", userName, clanName);
+                System.out.printf("[%s] I failed to join my clan %s. ;( It's time to rest! :P (%s)%n", userName, clanName, handler.cause());
                 startPromise.fail(handler.cause());
                 return;
             }

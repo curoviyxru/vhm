@@ -41,10 +41,10 @@ public final class Member extends AbstractMember {
         vertx.setTimer(joinDelay, timerHandler -> vertx.eventBus().<JsonObject>request(CLAN_LIST, null, listHandler -> {
             if (listHandler.failed()) {
                 if (random.nextInt(FULL_PROBABILITY) >= joinProbability) {
-                    System.out.printf("[%s] I can't get clans list! ;( Will try again later...%n", userName);
+                    System.out.printf("[%s] I can't get clans list! ;( Will try again later... (%s)%n", userName, listHandler.cause());
                     tryJoin();
                 } else {
-                    System.out.printf("[%s] I can't get clans list! ;( I'm tired...%n", userName);
+                    System.out.printf("[%s] I can't get clans list! ;( I'm tired... (%s)%n", userName, listHandler.cause());
                 }
                 return;
             }
@@ -62,10 +62,10 @@ public final class Member extends AbstractMember {
             vertx.eventBus().<String>request(clanName + CLAN_JOIN, request, joinHandler -> {
                 if (joinHandler.failed()) {
                     if (random.nextInt(FULL_PROBABILITY) >= joinProbability) {
-                        System.out.printf("[%s] I failed to join clan %s! ;( Will try again later...%n", userName, clanName);
+                        System.out.printf("[%s] I failed to join clan %s! ;( Will try again later... (%s)%n", userName, clanName, joinHandler.cause());
                         tryJoin();
                     } else {
-                        System.out.printf("[%s] I failed to join clan %s! ;( I'm tired...%n", userName, clanName);
+                        System.out.printf("[%s] I failed to join clan %s! ;( I'm tired... (%s)%n", userName, clanName, joinHandler.cause());
                     }
                     return;
                 }

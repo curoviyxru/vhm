@@ -12,11 +12,18 @@ import moe.crx.verticles.factory.EnumerableFactory;
 
 public final class Starter {
 
-    public static void deploy(Vertx vertx,
+    public static <T extends Verticle> void deploy(Vertx vertx,
                               DeploymentOptions options,
-                              EnumerableFactory<? extends Verticle> factory) {
+                              EnumerableFactory<T> factory) {
         vertx.registerVerticleFactory(factory);
-        vertx.deployVerticle(factory.deployName(), options);
+        vertx.deployVerticle(factory.deployName(), options, handler -> {
+            if (handler.failed()) {
+                System.out.printf("[Starter] Vertx failed to deploy verticle(s). (%s)%n", handler.cause());
+                return;
+            }
+
+            System.out.printf("[Starter] Verticle(s) deployed with id %s.%n", handler.result());
+        });
     }
 
     public static void main(String[] rawArgs) {
